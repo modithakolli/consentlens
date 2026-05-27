@@ -4,23 +4,42 @@
       "google-analytics.com",
       "googletagmanager.com",
       "analytics.google.com",
+      "assets.adobedtm.com",
+      "adobedtm.com",
       "segment.io",
       "mixpanel.com",
       "amplitude.com",
       "hotjar.com",
       "fullstory.com",
-      "heap.io"
+      "heap.io",
+      "quantserve.com",
+      "quantcount.com",
+      "analytics.ahrefs.com"
     ],
     ads: [
+      "ad.doubleclick.net",
       "doubleclick.net",
       "googlesyndication.com",
       "googleadservices.com",
+      "adservice.google.com",
       "facebook.com",
       "connect.facebook.net",
       "ads-twitter.com",
       "tiktok.com",
       "snap.licdn.com",
-      "ads.linkedin.com"
+      "ads.linkedin.com",
+      "taboola.com",
+      "reddit.com",
+      "redditstatic.com"
+    ],
+    consent: [
+      "cookielaw.org",
+      "onetrust.com",
+      "geolocation.onetrust.com"
+    ],
+    support: [
+      "liveperson.net",
+      "lpsnmedia.net"
     ],
     identity: [
       "accounts.google.com",
@@ -47,8 +66,8 @@
     { id: "payments", label: "Payment data", terms: ["payment information", "billing information", "credit card", "transaction"] },
     { id: "device", label: "Device identifiers", terms: ["device id", "advertising id", "ip address", "browser type", "unique identifier"] },
     { id: "behavior", label: "Behavior and usage", terms: ["usage data", "browsing", "clickstream", "interactions", "interactions with our websites", "pages you visit", "record information"] },
-    { id: "biometric", label: "Biometric or sensitive data", terms: ["biometric", "face scan", "voice", "health", "medical", "sensitive personal"] },
-    { id: "ai", label: "AI or automated processing", terms: ["artificial intelligence", "machine learning", "automated decision", "profiling", "train our models"] }
+    { id: "biometric", label: "Biometric or sensitive data", terms: ["biometric data", "face scan", "voiceprint", "health data", "medical information", "sensitive personal information"] },
+    { id: "ai", label: "AI or automated processing", terms: ["automated decision", "automated decisions", "profiling", "train our models", "model training using your data"] }
   ];
 
   const SHARING_PATTERNS = [

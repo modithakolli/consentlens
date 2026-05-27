@@ -10,6 +10,10 @@
     return (document.body?.innerText || "").replace(/\s+/g, " ").trim().slice(0, 120000);
   }
 
+  function nodeText(node) {
+    return (node?.innerText || node?.textContent || "").replace(/\s+/g, " ").trim();
+  }
+
   function findMatchingSignals(text, patterns) {
     const lower = text.toLowerCase();
     return patterns
@@ -26,8 +30,29 @@
         text: (link.innerText || link.getAttribute("aria-label") || "").trim(),
         href: link.href
       }))
-      .filter((link) => /privacy|policy|terms|legal|cookies|do not sell|data/i.test(link.text + " " + link.href))
+      .filter((link) => /privacy|cookie policy|cookies policy|terms of use|terms and conditions|legal|do not sell|data protection|personal data protection|privacy statement/i.test(link.text + " " + link.href))
       .slice(0, 20);
+  }
+
+  function findConsentText() {
+    const candidates = Array.from(document.querySelectorAll(
+      "[id*='cookie' i], [class*='cookie' i], [id*='consent' i], [class*='consent' i], [id*='onetrust' i], [class*='onetrust' i], [role='dialog'], dialog"
+    ));
+
+    const consentCandidates = candidates
+      .map(nodeText)
+      .filter((text) => /cookie|consent|privacy|accept all|manage settings|manage choices|reject all|third-party|third party/i.test(text))
+      .sort((a, b) => b.length - a.length);
+
+    return (consentCandidates[0] || "").slice(0, 12000);
+  }
+
+  function signalText(fullText, consentText) {
+    if (consentText) return consentText;
+    if (/privacy policy|cookie policy|data protection|personal data protection/i.test(document.title)) {
+      return fullText;
+    }
+    return "";
   }
 
   function scanCookieBanner(text) {
@@ -68,7 +93,8 @@
 
     const buttons = Array.from(document.querySelectorAll("button, a, [role='button']"))
       .map((node) => (node.innerText || node.getAttribute("aria-label") || "").trim())
-      .filter((text) => /continue with|sign in with|login with|google|microsoft|github|apple/i.test(text))
+      .filter((text) => text.length <= 90)
+      .filter((text) => /(continue|sign in|signin|log in|login)\s+with\s+(google|microsoft|github|apple)/i.test(text))
       .slice(0, 20);
 
     const scopes = Array.from(new Set(urls.flatMap(parseScopesFromUrl)));
@@ -107,16 +133,18 @@
 
   function buildReport() {
     const text = pageText();
+    const consentText = findConsentText();
+    const focusedSignalText = signalText(text, consentText);
     return {
       pageUrl: location.href,
       pageTitle: document.title,
       scannedAt: Date.now(),
       policyLinks: findPolicyLinks(),
-      cookieBanner: scanCookieBanner(text.slice(0, 40000)),
+      cookieBanner: scanCookieBanner((consentText || text).slice(0, 40000)),
       oauth: scanOAuth(),
       policySignals: {
-        dataCollected: findMatchingSignals(text, rules.DATA_PATTERNS),
-        sharing: findMatchingSignals(text, rules.SHARING_PATTERNS)
+        dataCollected: findMatchingSignals(focusedSignalText, rules.DATA_PATTERNS),
+        sharing: findMatchingSignals(focusedSignalText, rules.SHARING_PATTERNS)
       },
       visibleThirdPartyHints: visibleDomainClues()
     };

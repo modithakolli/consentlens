@@ -187,6 +187,12 @@ li {
   color: #1d704b;
 }
 
+.tag.consent,
+.tag.support {
+  background: #f2edf9;
+  color: #63418f;
+}
+
 .stats {
   display: grid;
   grid-template-columns: 1fr 1fr;

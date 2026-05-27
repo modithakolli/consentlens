@@ -66,14 +66,17 @@ function scoreReport(state) {
   let score = 0;
   const reasons = [];
 
-  const trackerCount = requests.filter((request) => request.categories.length).length;
+  const trackerCategories = ["ads", "analytics", "identity", "risk"];
+  const trackerCount = requests.filter((request) => request.categories.some((category) => trackerCategories.includes(category))).length;
   const thirdPartyCount = requests.length;
   const riskyDomains = requests.filter((request) => request.categories.includes("risk"));
   const adDomains = requests.filter((request) => request.categories.includes("ads"));
+  const analyticsDomains = requests.filter((request) => request.categories.includes("analytics"));
 
   score += Math.min(20, thirdPartyCount * 1.5);
   score += trackerCount * 3;
   score += adDomains.length * 4;
+  score += analyticsDomains.length * 2;
   score += riskyDomains.length * 8;
 
   if (content.cookieBanner?.hasBanner && !content.cookieBanner?.hasReject) {
@@ -143,10 +146,22 @@ function buildPlainEnglish(state) {
     oauth: oauthScopes.length
       ? "This page includes OAuth scopes. Review them before granting access, especially mail, files, contacts, and offline access."
       : "No OAuth consent scope was visible on this page.",
-    trackers: Object.values(state.requests).length
+    trackers: getThirdParties(state).length
       ? "The page contacted third-party domains. Known ad, analytics, identity, and fingerprinting domains are highlighted below."
       : "No third-party requests have been observed yet for this tab."
   };
+}
+
+function updateBadge(tabId, report) {
+  const level = report.risk.level;
+  const text = level === "High" ? "HIGH" : level === "Medium" ? "MED" : "LOW";
+  const color = level === "High" ? "#c93535" : level === "Medium" ? "#b26a00" : "#17895b";
+  chrome.action.setBadgeText({ tabId, text });
+  chrome.action.setBadgeBackgroundColor({ tabId, color });
+  chrome.action.setTitle({
+    tabId,
+    title: `ConsentLens: ${level} risk (${report.risk.score}/100)`
+  });
 }
 
 function getThirdParties(state) {
@@ -216,6 +231,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     state.pageUrl = message.report.pageUrl || state.pageUrl;
     state.pageHost = safeHost(message.report.pageUrl || state.pageUrl);
     state.updatedAt = Date.now();
+    updateBadge(sender.tab.id, buildReport(sender.tab.id));
     sendResponse({ ok: true });
     return true;
   }
