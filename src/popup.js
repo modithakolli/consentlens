@@ -39,6 +39,12 @@ function renderOAuth(oauth) {
     return;
   }
 
+  if (oauth.provider || oauth.appName) {
+    const p = document.createElement("p");
+    p.textContent = `${oauth.provider || "OAuth"} consent${oauth.appName ? ` for ${oauth.appName}` : ""}. Access level: ${oauth.accessLevel || "Unknown"}.`;
+    node.appendChild(p);
+  }
+
   if (oauth.buttons?.length) {
     const p = document.createElement("p");
     p.textContent = `Sign-in buttons found: ${oauth.buttons.join(", ")}`;
@@ -60,10 +66,17 @@ function renderOAuth(oauth) {
     const ul = document.createElement("ul");
     oauth.highRiskScopes.forEach((scope) => {
       const li = document.createElement("li");
-      li.textContent = `${scope.scope}: ${scope.note}`;
+      li.textContent = `${scope.scope}: ${scope.note} (${scope.accessLevel || "Medium"} access)`;
       ul.appendChild(li);
     });
     node.appendChild(ul);
+  }
+
+  if (oauth.purposeMismatch?.detected) {
+    const warning = document.createElement("p");
+    warning.className = "note";
+    warning.textContent = `Purpose mismatch: ${oauth.purposeMismatch.reason}`;
+    node.appendChild(warning);
   }
 }
 
@@ -150,7 +163,14 @@ async function scanActiveTab(tabId) {
   try {
     await chrome.scripting.executeScript({
       target: { tabId },
-      files: ["src/rules.js", "src/content.js"]
+      files: [
+        "src/rules.js",
+        "src/scanners/page.js",
+        "src/scanners/consent.js",
+        "src/scanners/oauth.js",
+        "src/ui/consent-warning.js",
+        "src/content.js"
+      ]
     });
     await wait(150);
   } catch (error) {

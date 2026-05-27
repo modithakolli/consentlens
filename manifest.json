@@ -13,7 +13,14 @@
   "content_scripts": [
     {
       "matches": ["<all_urls>"],
-      "js": ["src/rules.js", "src/content.js"],
+      "js": [
+        "src/rules.js",
+        "src/scanners/page.js",
+        "src/scanners/consent.js",
+        "src/scanners/oauth.js",
+        "src/ui/consent-warning.js",
+        "src/content.js"
+      ],
       "run_at": "document_idle"
     }
   ],
