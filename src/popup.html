@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>ConsentLens</title>
+    <link rel="stylesheet" href="popup.css">
+  </head>
+  <body>
+    <main class="shell">
+      <header class="topbar">
+        <div>
+          <h1>ConsentLens</h1>
+          <p id="host">Scanning current tab...</p>
+        </div>
+        <button id="refresh" type="button" title="Refresh scan" aria-label="Refresh scan">Refresh</button>
+      </header>
+
+      <section class="risk" id="riskCard">
+        <div>
+          <span class="eyebrow">Risk level</span>
+          <strong id="riskLevel">Unknown</strong>
+        </div>
+        <div class="meter" aria-hidden="true">
+          <span id="riskMeter"></span>
+        </div>
+        <span id="riskScore">0/100</span>
+      </section>
+
+      <section class="summary">
+        <h2>Plain English</h2>
+        <div id="plainEnglish" class="stack"></div>
+      </section>
+
+      <section class="grid">
+        <article>
+          <h2>Data Collected</h2>
+          <ul id="dataCollected"></ul>
+        </article>
+        <article>
+          <h2>Shared With</h2>
+          <ul id="sharedWith"></ul>
+        </article>
+      </section>
+
+      <section>
+        <h2>OAuth Consent</h2>
+        <div id="oauth"></div>
+      </section>
+
+      <section>
+        <h2>Third Parties</h2>
+        <div class="stats" id="stats"></div>
+        <ul id="thirdParties" class="domains"></ul>
+      </section>
+
+      <section>
+        <h2>Policy Links</h2>
+        <ul id="policyLinks"></ul>
+      </section>
+    </main>
+    <script src="popup.js"></script>
+  </body>
+</html>

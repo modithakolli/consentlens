@@ -1,0 +1,27 @@
+{
+  "manifest_version": 3,
+  "name": "ConsentLens",
+  "description": "Explains privacy policies, trackers, OAuth consent, and data risks in plain English.",
+  "version": "0.1.0",
+  "action": {
+    "default_title": "ConsentLens",
+    "default_popup": "src/popup.html"
+  },
+  "background": {
+    "service_worker": "src/background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["src/rules.js", "src/content.js"],
+      "run_at": "document_idle"
+    }
+  ],
+  "permissions": [
+    "activeTab",
+    "storage",
+    "tabs",
+    "webRequest"
+  ],
+  "host_permissions": ["<all_urls>"]
+}
