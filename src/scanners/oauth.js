@@ -62,6 +62,10 @@
     return urls;
   }
 
+  function metaDescription() {
+    return document.querySelector("meta[name='description'], meta[property='og:description']")?.content || "";
+  }
+
   function signInButtons() {
     return Array.from(document.querySelectorAll("button, a, [role='button']"))
       .map((node) => (node.innerText || node.getAttribute("aria-label") || "").replace(/\s+/g, " ").trim())
@@ -78,11 +82,37 @@
       ["productivity", /task|calendar|meeting|project|workflow|productivity/i],
       ["storage", /file|drive|storage|backup|sync/i],
       ["communication", /email|mail|message|chat|contact/i],
-      ["marketing", /marketing|crm|lead|campaign|sales/i]
+      ["marketing", /marketing|crm|lead|campaign|sales/i],
+      ["analytics", /analytics|insight|report|dashboard|measurement/i],
+      ["developer", /developer|api|automation|integration|deploy|code/i]
     ].forEach(([purpose, pattern]) => {
       if (pattern.test(lower)) purposes.push(purpose);
     });
-    return purposes;
+    return Array.from(new Set(purposes));
+  }
+
+  function hostFromUrl(url) {
+    const parsed = parseUrl(url);
+    return parsed?.hostname?.replace(/^www\./, "") || "";
+  }
+
+  function appNameFromPage(providerUrls) {
+    const parsed = providerUrls[0]?.parsed || null;
+    const explicit = parsed?.searchParams.get("client_name") || parsed?.searchParams.get("app_name");
+    if (explicit) return explicit;
+
+    const consentHeadings = Array.from(document.querySelectorAll("h1, h2, [role='heading']"))
+      .map((node) => node.innerText?.replace(/\s+/g, " ").trim())
+      .filter(Boolean)
+      .find((text) => /wants access|sign in|permissions|authorize|consent/i.test(text));
+
+    if (consentHeadings) return consentHeadings;
+
+    const title = document.title.replace(/\s+/g, " ").trim();
+    if (title) return title;
+
+    const redirectHost = hostFromUrl(parsed?.searchParams.get("redirect_uri") || "");
+    return redirectHost || "";
   }
 
   function purposeMismatch(scopes, purposes) {
@@ -112,16 +142,18 @@
     const highRiskScopes = scopes.filter((scope) => scope.score >= 4);
     const provider = providerUrls[0]?.provider || null;
     const parsed = providerUrls[0]?.parsed || null;
-    const appName = parsed?.searchParams.get("client_name") || parsed?.searchParams.get("app_name") || document.title || "";
+    const appName = appNameFromPage(providerUrls);
     const clientId = parsed?.searchParams.get("client_id") || "";
     const redirectUri = parsed?.searchParams.get("redirect_uri") || "";
-    const purposes = inferPurpose(`${document.title} ${page.fullText.slice(0, 3000)}`);
+    const redirectHost = hostFromUrl(redirectUri);
+    const purposes = inferPurpose(`${document.title} ${metaDescription()} ${redirectHost} ${page.fullText.slice(0, 3000)}`);
 
     return {
       provider: provider?.label || "",
       appName,
       clientId,
       redirectUri,
+      redirectHost,
       buttons: signInButtons(),
       scopes: scopes.map((scope) => scope.scope),
       scopeDetails: scopes,

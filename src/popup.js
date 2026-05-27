@@ -150,6 +150,33 @@ function renderLinks(links) {
   });
 }
 
+function renderReceipts(receipts) {
+  const node = el("receipts");
+  node.innerHTML = "";
+
+  if (!receipts?.length) {
+    const li = document.createElement("li");
+    li.className = "note";
+    li.textContent = "No consent receipts saved yet.";
+    node.appendChild(li);
+    return;
+  }
+
+  receipts.slice(0, 5).forEach((receipt) => {
+    const li = document.createElement("li");
+    const date = new Date(receipt.acceptedAt).toLocaleString();
+    const host = (() => {
+      try {
+        return new URL(receipt.pageUrl).hostname.replace(/^www\./, "");
+      } catch (error) {
+        return receipt.pageTitle || "Unknown site";
+      }
+    })();
+    li.textContent = `${host}: ${receipt.actionLabel} on ${date}`;
+    node.appendChild(li);
+  });
+}
+
 async function getActiveTab() {
   const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
   return tab;
@@ -169,6 +196,7 @@ async function scanActiveTab(tabId) {
         "src/scanners/consent.js",
         "src/scanners/oauth.js",
         "src/ui/consent-warning.js",
+        "src/ui/oauth-warning.js",
         "src/content.js"
       ]
     });
@@ -210,6 +238,11 @@ async function refresh() {
   renderStats(report.risk);
   renderThirdParties(report.thirdParties);
   renderLinks(report.content?.policyLinks);
+
+  const receiptResponse = await chrome.runtime.sendMessage({
+    type: "CONSENTLENS_GET_RECEIPTS"
+  });
+  renderReceipts(receiptResponse.receipts);
 }
 
 el("refresh").addEventListener("click", refresh);

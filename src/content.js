@@ -47,6 +47,11 @@
     sendReport
   });
 
+  window.ConsentLensOAuthWarning.install({
+    buildReport,
+    sendReport
+  });
+
   sendReport();
 
   let timer = null;

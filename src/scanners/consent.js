@@ -29,6 +29,11 @@
     const hasManage = /manage choices|manage settings|preferences|privacy settings|customize/i.test(text);
     const mentionsThirdParties = /third-party|third party|partners|marketing|advertising|analytics/i.test(text);
     const mentionsProfiling = /profiling|behavioral|personalized ads|targeted ads|cross-site|cross site/i.test(text);
+    const hasHiddenReject = hasReject && !findVisibleControl(/reject all|decline|necessary only|continue without accepting/i);
+    const hasPreselectedOptionalToggles = findPreselectedOptionalToggles();
+    const acceptButtons = findVisibleControls(/accept all|allow all|i agree|accept cookies/i);
+    const rejectButtons = findVisibleControls(/reject all|decline|necessary only|continue without accepting/i);
+    const acceptEmphasis = acceptButtons.length > rejectButtons.length;
 
     return {
       hasBanner,
@@ -37,8 +42,35 @@
       hasManage,
       mentionsThirdParties,
       mentionsProfiling,
-      possibleDarkPattern: hasBanner && hasAccept && !hasReject
+      hasHiddenReject,
+      hasPreselectedOptionalToggles,
+      acceptEmphasis,
+      possibleDarkPattern: hasBanner && hasAccept && (!hasReject || hasHiddenReject || acceptEmphasis || hasPreselectedOptionalToggles)
     };
+  }
+
+  function findVisibleControls(pattern) {
+    return Array.from(document.querySelectorAll("button, a, input[type='button'], input[type='submit'], [role='button']"))
+      .filter((node) => {
+        const text = (node.innerText || node.value || node.getAttribute("aria-label") || node.getAttribute("title") || "").replace(/\s+/g, " ").trim();
+        if (!pattern.test(text)) return false;
+        const rect = node.getBoundingClientRect();
+        const style = getComputedStyle(node);
+        return rect.width > 0 && rect.height > 0 && style.visibility !== "hidden" && style.display !== "none";
+      });
+  }
+
+  function findVisibleControl(pattern) {
+    return findVisibleControls(pattern)[0] || null;
+  }
+
+  function findPreselectedOptionalToggles() {
+    return Array.from(document.querySelectorAll("input[type='checkbox']:checked, input[type='radio']:checked, [role='switch'][aria-checked='true']"))
+      .some((node) => {
+        const container = node.closest("label, li, div, section") || node;
+        const text = ConsentLensPageScanner.nodeText(container).toLowerCase();
+        return /marketing|advertising|analytics|personalization|partners|third-party|third party|optional/.test(text) && !/strictly necessary|essential|required/.test(text);
+      });
   }
 
   function buildSummary(cookieBanner, policySignals, visibleThirdPartyHints) {
@@ -76,6 +108,22 @@
         kind: "darkPattern",
         label: "Consent design risk",
         detail: "A settings option exists, but an equally obvious reject choice was not detected."
+      });
+    }
+
+    if (cookieBanner.hasHiddenReject) {
+      summary.push({
+        kind: "hiddenReject",
+        label: "Hidden reject option",
+        detail: "Reject language appears in the banner text, but ConsentLens did not find a visible reject button."
+      });
+    }
+
+    if (cookieBanner.hasPreselectedOptionalToggles) {
+      summary.push({
+        kind: "preselected",
+        label: "Preselected optional tracking",
+        detail: "Optional analytics, marketing, personalization, or partner toggles appear to be enabled by default."
       });
     }
 

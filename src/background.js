@@ -84,6 +84,16 @@ function scoreReport(state) {
     reasons.push("Cookie banner appears to emphasize accepting without an equally visible reject choice.");
   }
 
+  if (content.cookieBanner?.hasHiddenReject) {
+    score += 8;
+    reasons.push("Reject language appears, but a visible reject control was not detected.");
+  }
+
+  if (content.cookieBanner?.hasPreselectedOptionalToggles) {
+    score += 10;
+    reasons.push("Optional analytics, marketing, personalization, or partner toggles appear to be preselected.");
+  }
+
   if (content.cookieBanner?.hasBanner && content.cookieBanner?.mentionsThirdParties) {
     score += 10;
     reasons.push("Cookie notice says data may be collected or used with third-party partners.");
@@ -92,6 +102,11 @@ function scoreReport(state) {
   if (content.oauth?.highRiskScopes?.length) {
     score += Math.min(30, content.oauth.highRiskScopes.reduce((sum, scope) => sum + scope.score, 0));
     reasons.push("OAuth consent includes scopes that can expose mail, files, contacts, or long-lived access.");
+  }
+
+  if (content.oauth?.purposeMismatch?.detected) {
+    score += 12;
+    reasons.push("OAuth permission scope may be broader than the apparent purpose of the app.");
   }
 
   if (content.policySignals?.dataCollected?.some((item) => item.id === "biometric")) {
@@ -206,6 +221,14 @@ function buildReport(tabId) {
   };
 }
 
+function storeReceipt(receipt) {
+  chrome.storage.local.get({ consentReceipts: [] }, (result) => {
+    const receipts = Array.isArray(result.consentReceipts) ? result.consentReceipts : [];
+    const next = [receipt, ...receipts].slice(0, 50);
+    chrome.storage.local.set({ consentReceipts: next });
+  });
+}
+
 chrome.webRequest.onBeforeRequest.addListener(
   recordRequest,
   { urls: ["<all_urls>"] }
@@ -239,6 +262,19 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message?.type === "CONSENTLENS_GET_REPORT") {
     const tabId = message.tabId;
     sendResponse({ ok: true, report: buildReport(tabId) });
+    return true;
+  }
+
+  if (message?.type === "CONSENTLENS_STORE_RECEIPT") {
+    storeReceipt(message.receipt);
+    sendResponse({ ok: true });
+    return true;
+  }
+
+  if (message?.type === "CONSENTLENS_GET_RECEIPTS") {
+    chrome.storage.local.get({ consentReceipts: [] }, (result) => {
+      sendResponse({ ok: true, receipts: result.consentReceipts || [] });
+    });
     return true;
   }
 

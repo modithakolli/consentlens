@@ -54,6 +54,9 @@ It cannot guarantee detection of every hidden tracker, server-side data sharing,
 - Detect OAuth providers such as Google, Microsoft, Apple, and GitHub
 - Parse OAuth scopes, access level, client ID, redirect URI, and app-name hints when visible
 - Flag basic permission-vs-purpose mismatch, such as broad mail or file access for a narrow productivity use
+- Warn before continuing into a detected OAuth sign-in flow
+- Save local consent receipts for accepted cookie choices
+- Detect stronger dark-pattern signals, including hidden reject controls and preselected optional toggles
 
 ### Version 3: Policy and legal intelligence
 
@@ -87,7 +90,7 @@ The goal is to explain risk clearly enough for a normal person to pause before c
 
 - Add a full policy-page fetcher and summarizer
 - Add regional law explanations for GDPR, CCPA/CPRA, COPPA, HIPAA, and India's DPDP Act
-- Add a stronger OAuth warning screen before redirecting to Google or Microsoft
+- Improve OAuth app-name detection on provider consent screens
 - Add community-maintained tracker and risky-domain feeds
 - Add screenshots or DOM checks for stronger dark-pattern detection
 - Add exportable consent receipts so users can remember what they accepted

@@ -77,6 +77,21 @@
     acceptButton.className = "consentlens-primary";
     acceptButton.textContent = "Accept anyway";
     acceptButton.addEventListener("click", () => {
+      try {
+        chrome.runtime.sendMessage({
+          type: "CONSENTLENS_STORE_RECEIPT",
+          receipt: {
+            kind: "cookie-consent",
+            pageUrl: location.href,
+            pageTitle: document.title,
+            actionLabel: action.label,
+            acceptedAt: Date.now(),
+            summary: summary.slice(0, 5)
+          }
+        });
+      } catch (error) {
+        // Receipts are best-effort and should never block the user's choice.
+      }
       removeConsentOverlay();
       bypassConsentWarning = true;
       action.control.click();
