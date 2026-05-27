@@ -1,4 +1,9 @@
 (function scanConsentSurface() {
+  if (window.__consentLensScanNow) {
+    window.__consentLensScanNow();
+    return;
+  }
+
   const rules = window.ConsentLensRules;
 
   function pageText() {
@@ -32,12 +37,14 @@
     const hasAccept = /accept all|agree|allow all/i.test(text);
     const hasReject = /reject all|decline|necessary only|continue without accepting/i.test(text);
     const hasManage = /manage choices|preferences|privacy settings|customize/i.test(text);
+    const mentionsThirdParties = /third-party|third party|partners|marketing|advertising|analytics/i.test(text);
 
     return {
       hasBanner,
       hasAccept,
       hasReject,
       hasManage,
+      mentionsThirdParties,
       possibleDarkPattern: hasBanner && hasAccept && !hasReject
     };
   }
@@ -129,6 +136,7 @@
     }
   }
 
+  window.__consentLensScanNow = sendReport;
   sendReport();
 
   let timer = null;

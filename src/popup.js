@@ -142,11 +142,28 @@ async function getActiveTab() {
   return tab;
 }
 
+function wait(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+async function scanActiveTab(tabId) {
+  try {
+    await chrome.scripting.executeScript({
+      target: { tabId },
+      files: ["src/rules.js", "src/content.js"]
+    });
+    await wait(150);
+  } catch (error) {
+    // Browser-internal pages and some restricted pages cannot be scanned.
+  }
+}
+
 async function refresh() {
   const tab = await getActiveTab();
   if (!tab?.id) return;
 
   el("host").textContent = tab.url || "Current tab";
+  await scanActiveTab(tab.id);
 
   const response = await chrome.runtime.sendMessage({
     type: "CONSENTLENS_GET_REPORT",

@@ -41,19 +41,19 @@
   };
 
   const DATA_PATTERNS = [
-    { id: "identity", label: "Identity details", terms: ["name", "email address", "phone number", "account information", "profile information"] },
+    { id: "identity", label: "Identity details", terms: ["name", "email address", "phone number", "account information", "profile information", "information you provide"] },
     { id: "location", label: "Location", terms: ["precise location", "gps", "location data", "geolocation"] },
     { id: "contacts", label: "Contacts", terms: ["contacts", "address book", "friends list"] },
     { id: "payments", label: "Payment data", terms: ["payment information", "billing information", "credit card", "transaction"] },
     { id: "device", label: "Device identifiers", terms: ["device id", "advertising id", "ip address", "browser type", "unique identifier"] },
-    { id: "behavior", label: "Behavior and usage", terms: ["usage data", "browsing", "clickstream", "interactions", "pages you visit"] },
+    { id: "behavior", label: "Behavior and usage", terms: ["usage data", "browsing", "clickstream", "interactions", "interactions with our websites", "pages you visit", "record information"] },
     { id: "biometric", label: "Biometric or sensitive data", terms: ["biometric", "face scan", "voice", "health", "medical", "sensitive personal"] },
     { id: "ai", label: "AI or automated processing", terms: ["artificial intelligence", "machine learning", "automated decision", "profiling", "train our models"] }
   ];
 
   const SHARING_PATTERNS = [
-    { id: "serviceProviders", label: "Service providers", terms: ["service providers", "vendors", "processors", "subprocessors"] },
-    { id: "advertisers", label: "Advertisers and ad networks", terms: ["advertising partners", "ad networks", "targeted advertising", "cross-context behavioral advertising"] },
+    { id: "serviceProviders", label: "Service providers", terms: ["service providers", "vendors", "processors", "subprocessors", "third-party partners", "third party partners"] },
+    { id: "advertisers", label: "Advertisers and ad networks", terms: ["advertising partners", "ad networks", "targeted advertising", "cross-context behavioral advertising", "marketing efforts", "assist in our marketing"] },
     { id: "affiliates", label: "Affiliates", terms: ["affiliates", "subsidiaries", "parent company", "corporate family"] },
     { id: "brokers", label: "Data brokers or resale", terms: ["data brokers", "sell personal information", "share personal information", "monetize"] },
     { id: "law", label: "Legal or government requests", terms: ["law enforcement", "legal process", "government request", "court order"] }

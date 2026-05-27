@@ -61,7 +61,7 @@ function recordRequest(details) {
 }
 
 function scoreReport(state) {
-  const requests = Object.values(state.requests);
+  const requests = getThirdParties(state);
   const content = state.contentReport || {};
   let score = 0;
   const reasons = [];
@@ -77,8 +77,13 @@ function scoreReport(state) {
   score += riskyDomains.length * 8;
 
   if (content.cookieBanner?.hasBanner && !content.cookieBanner?.hasReject) {
-    score += 10;
+    score += 15;
     reasons.push("Cookie banner appears to emphasize accepting without an equally visible reject choice.");
+  }
+
+  if (content.cookieBanner?.hasBanner && content.cookieBanner?.mentionsThirdParties) {
+    score += 10;
+    reasons.push("Cookie notice says data may be collected or used with third-party partners.");
   }
 
   if (content.oauth?.highRiskScopes?.length) {
@@ -96,13 +101,18 @@ function scoreReport(state) {
     reasons.push("Policy text suggests advertising, sale, sharing, or resale risk.");
   }
 
+  if (content.policySignals?.sharing?.some((item) => item.id === "serviceProviders")) {
+    score += 6;
+    reasons.push("Visible text mentions vendors, processors, or third-party partners.");
+  }
+
   if (content.policySignals?.dataCollected?.some((item) => item.id === "ai")) {
     score += 8;
     reasons.push("Policy text mentions AI, profiling, model training, or automated decisions.");
   }
 
   const capped = Math.max(0, Math.min(100, Math.round(score)));
-  const level = capped >= 70 ? "High" : capped >= 35 ? "Medium" : "Low";
+  const level = capped >= 65 ? "High" : capped >= 25 ? "Medium" : "Low";
 
   return {
     score: capped,
@@ -139,9 +149,34 @@ function buildPlainEnglish(state) {
   };
 }
 
+function getThirdParties(state) {
+  const merged = new Map();
+  Object.values(state.requests).forEach((request) => {
+    merged.set(request.host, { ...request });
+  });
+
+  (state.contentReport?.visibleThirdPartyHints || []).forEach((hint) => {
+    if (!merged.has(hint.host)) {
+      merged.set(hint.host, {
+        host: hint.host,
+        count: 0,
+        types: {},
+        categories: hint.categories || [],
+        source: "page"
+      });
+      return;
+    }
+
+    const existing = merged.get(hint.host);
+    existing.categories = Array.from(new Set([...existing.categories, ...(hint.categories || [])]));
+  });
+
+  return Array.from(merged.values());
+}
+
 function buildReport(tabId) {
   const state = getTabState(tabId);
-  const requests = Object.values(state.requests)
+  const requests = getThirdParties(state)
     .sort((a, b) => b.count - a.count)
     .slice(0, 60);
 
