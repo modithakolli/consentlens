@@ -37,6 +37,18 @@ body {
   gap: 12px;
 }
 
+.sectionHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+
+.sectionHead h2 {
+  margin-bottom: 0;
+}
+
 h1,
 h2,
 p {
@@ -156,6 +168,10 @@ li {
 
 .note {
   color: var(--muted);
+}
+
+.error {
+  color: var(--high);
 }
 
 .pill,

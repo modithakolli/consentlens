@@ -1,5 +1,6 @@
 importScripts("rules.js");
 
+const BACKEND_BASE_URL = "http://localhost:8787";
 const tabState = new Map();
 
 function blankState(tabId) {
@@ -221,6 +222,58 @@ function buildReport(tabId) {
   };
 }
 
+function bestPolicyLink(report) {
+  const links = report.content?.policyLinks || [];
+  return links.find((link) => /privacy/i.test(link.text + " " + link.href))
+    || links.find((link) => /cookie/i.test(link.text + " " + link.href))
+    || links[0]
+    || null;
+}
+
+async function analyzeCurrentPolicy(tabId, region = "IN") {
+  const report = buildReport(tabId);
+  const policy = bestPolicyLink(report);
+
+  if (!policy?.href) {
+    return {
+      policy: null,
+      domainIntel: [],
+      error: "No privacy or cookie policy link was detected on this page."
+    };
+  }
+
+  const policyResponse = await fetch(`${BACKEND_BASE_URL}/analyze-policy`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      policyUrl: policy.href,
+      pageUrl: report.pageUrl,
+      region
+    })
+  });
+
+  if (!policyResponse.ok) {
+    throw new Error(`Backend policy analysis failed with ${policyResponse.status}`);
+  }
+
+  const policyPayload = await policyResponse.json();
+  const domainResponse = await fetch(`${BACKEND_BASE_URL}/domain-intel`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      domains: report.thirdParties.map((party) => party.host)
+    })
+  });
+
+  const domainPayload = domainResponse.ok ? await domainResponse.json() : { domains: [] };
+
+  return {
+    policy: policyPayload.analysis,
+    domainIntel: domainPayload.domains || [],
+    error: ""
+  };
+}
+
 function storeReceipt(receipt) {
   chrome.storage.local.get({ consentReceipts: [] }, (result) => {
     const receipts = Array.isArray(result.consentReceipts) ? result.consentReceipts : [];
@@ -275,6 +328,13 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     chrome.storage.local.get({ consentReceipts: [] }, (result) => {
       sendResponse({ ok: true, receipts: result.consentReceipts || [] });
     });
+    return true;
+  }
+
+  if (message?.type === "CONSENTLENS_ANALYZE_POLICY") {
+    analyzeCurrentPolicy(message.tabId, message.region)
+      .then((analysis) => sendResponse({ ok: true, analysis }))
+      .catch((error) => sendResponse({ ok: false, error: error.message }));
     return true;
   }
 

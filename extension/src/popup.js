@@ -150,6 +150,55 @@ function renderLinks(links) {
   });
 }
 
+function renderPolicyIntelligence(analysis) {
+  const node = el("policyIntelligence");
+  node.innerHTML = "";
+
+  if (!analysis) {
+    const p = document.createElement("p");
+    p.className = "note";
+    p.textContent = "Run policy analysis to fetch the linked policy, summarize key clauses, and show relevant privacy rights.";
+    node.appendChild(p);
+    return;
+  }
+
+  if (analysis.error) {
+    const p = document.createElement("p");
+    p.className = "error";
+    p.textContent = analysis.error;
+    node.appendChild(p);
+    return;
+  }
+
+  const policy = analysis.policy;
+  const risk = document.createElement("p");
+  risk.textContent = `Policy risk: ${policy.risk.level} (${policy.risk.score}/100)`;
+  node.appendChild(risk);
+
+  policy.summary.slice(0, 5).forEach((text) => {
+    const p = document.createElement("p");
+    p.textContent = text;
+    node.appendChild(p);
+  });
+
+  if (policy.legal) {
+    const legal = document.createElement("p");
+    legal.className = "note";
+    legal.textContent = `${policy.legal.region}: ${policy.legal.law}. Rights may include ${policy.legal.rights.slice(0, 2).join("; ")}.`;
+    node.appendChild(legal);
+  }
+
+  if (analysis.domainIntel?.length) {
+    const known = analysis.domainIntel.filter((item) => item.known).slice(0, 5);
+    if (known.length) {
+      const p = document.createElement("p");
+      p.className = "note";
+      p.textContent = `Known companies: ${known.map((item) => `${item.company} (${item.purpose})`).join("; ")}`;
+      node.appendChild(p);
+    }
+  }
+}
+
 function renderReceipts(receipts) {
   const node = el("receipts");
   node.innerHTML = "";
@@ -243,9 +292,34 @@ async function refresh() {
     type: "CONSENTLENS_GET_RECEIPTS"
   });
   renderReceipts(receiptResponse.receipts);
+  renderPolicyIntelligence(null);
 }
 
 el("refresh").addEventListener("click", refresh);
+el("analyzePolicy").addEventListener("click", async () => {
+  const tab = await getActiveTab();
+  if (!tab?.id) return;
+
+  const node = el("policyIntelligence");
+  node.innerHTML = "";
+  const loading = document.createElement("p");
+  loading.className = "note";
+  loading.textContent = "Analyzing linked policy with local backend...";
+  node.appendChild(loading);
+
+  const response = await chrome.runtime.sendMessage({
+    type: "CONSENTLENS_ANALYZE_POLICY",
+    tabId: tab.id,
+    region: "IN"
+  });
+
+  if (!response.ok) {
+    renderPolicyIntelligence({ error: `${response.error}. Start the backend with: node backend/server.js` });
+    return;
+  }
+
+  renderPolicyIntelligence(response.analysis);
+});
 refresh().catch((error) => {
   paragraph("plainEnglish", [`Unable to read this tab: ${error.message}`]);
 });
