@@ -15,6 +15,11 @@ It scans the current page for privacy-policy signals, cookie-consent patterns, O
 - Whether the page mentions AI, profiling, model training, or automated decisions
 - What the privacy nutrition label looks like in plain English
 - Whether the policy appears to have changed since the last analysis
+- The data-flow path from you to the site to third parties
+- A local privacy risk timeline across recent sites
+- A DSAR draft for access, deletion, or export requests
+- Fingerprinting signals and anti-bot style identification hints
+- An evidence-grounded Q&A helper for quick plain-English answers
 - A simple low, medium, or high risk score
 
 ## Current modules
@@ -24,6 +29,7 @@ It scans the current page for privacy-policy signals, cookie-consent patterns, O
 - `src/scanners/page.js`: page text, policy links, and visible third-party domain hints
 - `src/scanners/consent.js`: cookie banner detection and consent summary generation
 - `src/scanners/oauth.js`: OAuth provider, scope, access-level, and purpose-mismatch detection
+- `src/scanners/fingerprinting.js`: fingerprinting and anti-bot style signal detection
 - `src/ui/consent-warning.js`: in-page "Before you accept" warning overlay
 - `src/ui/oauth-warning.js`: in-page OAuth warning overlay
 - `src/options.*`: extension settings page for backend URL and region
@@ -70,6 +76,11 @@ It should not be treated as a legal compliance verdict. The tool is designed to 
 - Extract data retention, deletion, sale/sharing, sensitive data, and AI-processing clauses
 - Show a privacy nutrition label with grade, collects, shares, retention, and rights
 - Monitor policy changes locally and flag new or removed signals
+- Render a data-flow visualization from you to the site to third parties and companies
+- Show a local privacy risk timeline based on recent scans
+- Generate a DSAR draft from the detected evidence
+- Flag likely fingerprinting or anti-bot style identification signals
+- Answer simple privacy questions from the detected evidence
 - Add legal awareness for GDPR, CCPA/CPRA, COPPA, HIPAA, and India's DPDP Act
 - Map third-party domains to companies and likely purposes
 - Add a tracker graph showing site to third-party company relationships

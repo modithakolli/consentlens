@@ -76,8 +76,35 @@
       </section>
 
       <section>
-        <h2>Tracker Graph</h2>
+        <h2>Data Flow</h2>
         <div id="trackerGraph" class="graph"></div>
+      </section>
+
+      <section>
+        <h2>Privacy Timeline</h2>
+        <ul id="privacyTimeline" class="domains"></ul>
+      </section>
+
+      <section>
+        <div class="sectionHead">
+          <h2>DSAR Draft</h2>
+          <button id="copyDsar" type="button">Copy</button>
+        </div>
+        <textarea id="dsarDraft" class="draft" readonly></textarea>
+      </section>
+
+      <section>
+        <h2>Fingerprinting</h2>
+        <div id="fingerprinting" class="stack"></div>
+      </section>
+
+      <section>
+        <div class="sectionHead">
+          <h2>Evidence Q&A</h2>
+          <button id="askEvidence" type="button">Ask</button>
+        </div>
+        <textarea id="evidenceQuestion" class="draft" rows="2" placeholder="Why is this risky?"></textarea>
+        <div id="evidenceAnswer" class="stack"></div>
       </section>
 
       <section>

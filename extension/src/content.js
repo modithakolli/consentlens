@@ -8,6 +8,7 @@
     const page = window.ConsentLensPageScanner.scan();
     const consent = window.ConsentLensConsentScanner.scan(page);
     const oauth = window.ConsentLensOAuthScanner.scan(page);
+    const fingerprinting = window.ConsentLensFingerprintScanner.scan(page);
 
     return {
       pageUrl: location.href,
@@ -21,7 +22,8 @@
         sharing: window.ConsentLensPageScanner.findMatchingSignals(consent.signalText, ConsentLensRules.SHARING_PATTERNS)
       },
       visibleThirdPartyHints: page.visibleThirdPartyHints,
-      consentSummary: consent.summary
+      consentSummary: consent.summary,
+      fingerprinting
     };
   }
 

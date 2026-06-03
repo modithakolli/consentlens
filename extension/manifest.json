@@ -19,6 +19,7 @@
         "src/scanners/page.js",
         "src/scanners/consent.js",
         "src/scanners/oauth.js",
+        "src/scanners/fingerprinting.js",
         "src/ui/consent-warning.js",
         "src/ui/oauth-warning.js",
         "src/content.js"

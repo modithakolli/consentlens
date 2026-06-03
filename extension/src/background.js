@@ -114,6 +114,11 @@ function scoreReport(state) {
     reasons.push("OAuth permission scope may be broader than the apparent purpose of the app.");
   }
 
+  if (content.fingerprinting?.detected) {
+    score += content.fingerprinting.riskLevel === "High" ? 10 : 6;
+    reasons.push("The page shows signs of fingerprinting or anti-bot style device identification.");
+  }
+
   if (content.policySignals?.dataCollected?.some((item) => item.id === "biometric")) {
     score += 12;
     reasons.push("Policy text mentions biometric, health, or similarly sensitive data.");
@@ -155,6 +160,7 @@ function buildPlainEnglish(state) {
   const data = content.policySignals?.dataCollected || [];
   const sharing = content.policySignals?.sharing || [];
   const oauthScopes = content.oauth?.scopes || [];
+  const fingerprinting = content.fingerprinting || {};
 
   return {
     dataCollected: data.length
@@ -168,7 +174,10 @@ function buildPlainEnglish(state) {
       : "No OAuth consent scope was visible on this page.",
     trackers: getThirdParties(state).length
       ? "The page contacted third-party domains. Known ad, analytics, identity, and fingerprinting domains are highlighted below."
-      : "No third-party requests have been observed yet for this tab."
+      : "No third-party requests have been observed yet for this tab.",
+    fingerprinting: fingerprinting.detected
+      ? `Possible fingerprinting signals detected: ${fingerprinting.evidence.slice(0, 3).join(", ")}.`
+      : "No obvious fingerprinting signals were detected from visible page text or known risky domains."
   };
 }
 
@@ -233,6 +242,30 @@ function storePolicySnapshot(snapshot) {
       chrome.storage.local.set({
         policySnapshots: [nextEntry, ...snapshots.filter((item) => item.key !== key)].slice(0, 50)
       }, () => resolve({ previous, changes }));
+    });
+  });
+}
+
+function storeActivityTimeline(report, risk) {
+  return new Promise((resolve) => {
+    chrome.storage.local.get({ activityTimeline: [] }, (result) => {
+      const timeline = Array.isArray(result.activityTimeline) ? result.activityTimeline : [];
+      const pageHost = report.pageHost || safeHost(report.pageUrl || "");
+      const entry = {
+        key: pageHost || report.pageUrl || "unknown",
+        pageUrl: report.pageUrl || "",
+        pageHost,
+        title: report.content?.pageTitle || "",
+        score: risk.score,
+        level: risk.level,
+        thirdParties: report.thirdParties?.length || 0,
+        fingerprinting: Boolean(report.content?.fingerprinting?.detected),
+        savedAt: Date.now()
+      };
+
+      chrome.storage.local.set({
+        activityTimeline: [entry, ...timeline.filter((item) => item.key !== entry.key)].slice(0, 30)
+      }, () => resolve(entry));
     });
   });
 }
@@ -377,7 +410,9 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     state.pageUrl = message.report.pageUrl || state.pageUrl;
     state.pageHost = safeHost(message.report.pageUrl || state.pageUrl);
     state.updatedAt = Date.now();
-    updateBadge(sender.tab.id, buildReport(sender.tab.id));
+    const report = buildReport(sender.tab.id);
+    updateBadge(sender.tab.id, report);
+    storeActivityTimeline(report, report.risk);
     sendResponse({ ok: true });
     return true;
   }
@@ -397,6 +432,13 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message?.type === "CONSENTLENS_GET_RECEIPTS") {
     chrome.storage.local.get({ consentReceipts: [] }, (result) => {
       sendResponse({ ok: true, receipts: result.consentReceipts || [] });
+    });
+    return true;
+  }
+
+  if (message?.type === "CONSENTLENS_GET_TIMELINE") {
+    chrome.storage.local.get({ activityTimeline: [] }, (result) => {
+      sendResponse({ ok: true, timeline: result.activityTimeline || [] });
     });
     return true;
   }

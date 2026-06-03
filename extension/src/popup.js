@@ -174,6 +174,10 @@ function renderGraph(report, analysis) {
     const row = document.createElement("div");
     row.className = "graphRow";
 
+    const user = document.createElement("div");
+    user.className = "graphNode";
+    user.innerHTML = `<strong>You</strong><span>consent / browse</span>`;
+
     const source = document.createElement("div");
     source.className = "graphNode";
     source.innerHTML = `<strong>${report.pageHost || "This site"}</strong><span>site</span>`;
@@ -194,7 +198,11 @@ function renderGraph(report, analysis) {
     company.className = "graphNode";
     company.innerHTML = `<strong>${intel.company || "Unknown company"}</strong><span>${intel.purpose || "Unknown purpose"}</span>`;
 
-    row.append(source, arrow1, tracker, arrow2, company);
+    const arrow3 = document.createElement("div");
+    arrow3.className = "graphArrow";
+    arrow3.textContent = "->";
+
+    row.append(user, arrow1, source, arrow2, tracker, arrow3, company);
     node.appendChild(row);
   });
 }
@@ -282,6 +290,156 @@ function renderPrivacyLabel(report, analysis) {
   node.appendChild(p);
 }
 
+function renderTimeline(timeline) {
+  const node = el("privacyTimeline");
+  node.innerHTML = "";
+
+  if (!timeline?.length) {
+    const li = document.createElement("li");
+    li.className = "note";
+    li.textContent = "No recent analyses saved yet.";
+    node.appendChild(li);
+    return;
+  }
+
+  timeline.slice(0, 8).forEach((item) => {
+    const li = document.createElement("li");
+    const when = new Date(item.savedAt).toLocaleString();
+    li.textContent = `${item.pageHost || "Unknown site"}: ${item.level} (${item.score}/100), ${item.thirdParties} third-party domains, ${item.fingerprinting ? "fingerprinting signaled" : "no fingerprinting signaled"} on ${when}`;
+    node.appendChild(li);
+  });
+}
+
+function buildDsarDraft(report, analysis) {
+  if (!report) {
+    return "Load a page and click Refresh to generate a DSAR draft.";
+  }
+
+  const host = report.pageHost || "this website";
+  const policy = analysis?.policy;
+  const rights = policy?.privacyLabel?.rights || [
+    "Access my data.",
+    "Delete my data.",
+    "Export my data.",
+    "Withdraw optional consent where applicable."
+  ];
+  const collected = policy?.privacyLabel?.collects?.length ? policy.privacyLabel.collects.join(", ") : "identity, device, usage, and third-party data categories";
+  const shared = policy?.privacyLabel?.shares?.length ? policy.privacyLabel.shares.join(", ") : "service providers, analytics vendors, and advertising partners";
+
+  return [
+    `Subject: Data access / deletion request for ${host}`,
+    "",
+    `Hello,`,
+    "",
+    `I am requesting a copy of the personal data associated with my account and browsing activity for ${host}, including the categories I may have consented to through cookies, OAuth, or policy acceptance.`,
+    "",
+    `Please provide:`,
+    ...rights.map((right) => `- ${right}`),
+    "",
+    `Based on the current policy signals, likely data categories include: ${collected}.`,
+    `Likely sharing categories include: ${shared}.`,
+    "",
+    "Please confirm any retention periods, third-party recipients, and how to withdraw optional consent.",
+    "",
+    "Thank you."
+  ].join("\n");
+}
+
+function renderDsar(report, analysis) {
+  const node = el("dsarDraft");
+  node.value = buildDsarDraft(report, analysis);
+}
+
+async function copyDsar() {
+  const node = el("dsarDraft");
+  const text = node.value || "";
+  if (!text) return;
+  try {
+    await navigator.clipboard.writeText(text);
+  } catch (error) {
+    node.focus();
+    node.select();
+    document.execCommand("copy");
+    node.setSelectionRange(0, 0);
+  }
+}
+
+function renderFingerprinting(report) {
+  const node = el("fingerprinting");
+  node.innerHTML = "";
+  if (!report) {
+    const p = document.createElement("p");
+    p.className = "note";
+    p.textContent = "Load a page and click Refresh to inspect fingerprinting hints.";
+    node.appendChild(p);
+    return;
+  }
+  const fingerprinting = report.content?.fingerprinting;
+
+  if (!fingerprinting?.detected) {
+    const p = document.createElement("p");
+    p.className = "note";
+    p.textContent = "No obvious fingerprinting signals were detected from the visible page text or risky domains.";
+    node.appendChild(p);
+    return;
+  }
+
+  const summary = document.createElement("p");
+  summary.textContent = `Risk level: ${fingerprinting.riskLevel}. Evidence: ${fingerprinting.evidence.join(", ")}.`;
+  node.appendChild(summary);
+
+  const suggestions = document.createElement("p");
+  suggestions.className = "note";
+  suggestions.textContent = "This can be used for anti-bot checks, fraud controls, or cross-session identification. It is worth pausing before continuing.";
+  node.appendChild(suggestions);
+}
+
+function answerEvidenceQuestion(report, analysis, question) {
+  if (!report) {
+    return "Load a page and click Refresh first so I have evidence to work from.";
+  }
+
+  const q = String(question || "").toLowerCase().trim();
+  const chunks = [];
+  const riskLine = `Current page risk: ${report.risk.level} (${report.risk.score}/100).`;
+  chunks.push(riskLine);
+
+  if (!q || /why|risk|danger|safe/.test(q)) {
+    chunks.push(report.risk.reasons.length ? `Main reasons: ${report.risk.reasons.join(" ")}` : "No major risk reasons were detected from the available signals.");
+  }
+
+  if (/data|collect|share/.test(q)) {
+    chunks.push(`Likely collected: ${report.plainEnglish.dataCollected.slice(0, 3).join(", ")}.`);
+    chunks.push(`Likely shared with: ${report.plainEnglish.sharedWith.slice(0, 3).join(", ")}.`);
+  }
+
+  if (/oauth|google|microsoft|apple|github|login/.test(q)) {
+    chunks.push(report.plainEnglish.oauth);
+    if (report.content?.oauth?.purposeMismatch?.detected) {
+      chunks.push(`Purpose mismatch: ${report.content.oauth.purposeMismatch.reason}`);
+    }
+  }
+
+  if (/fingerprint|tracking|tracker/.test(q)) {
+    chunks.push(report.plainEnglish.fingerprinting);
+  }
+
+  if (analysis?.policy?.privacyLabel) {
+    chunks.push(`Policy label: ${analysis.policy.privacyLabel.grade}, with rights that may include ${analysis.policy.privacyLabel.rights.slice(0, 2).join("; ")}.`);
+  }
+
+  return chunks.join(" ");
+}
+
+function renderEvidenceQA(report, analysis, question) {
+  const node = el("evidenceAnswer");
+  node.innerHTML = "";
+
+  const p = document.createElement("p");
+  p.textContent = answerEvidenceQuestion(report, analysis, question || el("evidenceQuestion").value);
+  node.appendChild(p);
+}
+
 function renderReceipts(receipts) {
   const node = el("receipts");
   node.innerHTML = "";
@@ -327,6 +485,7 @@ async function scanActiveTab(tabId) {
         "src/scanners/page.js",
         "src/scanners/consent.js",
         "src/scanners/oauth.js",
+        "src/scanners/fingerprinting.js",
         "src/ui/consent-warning.js",
         "src/ui/oauth-warning.js",
         "src/content.js"
@@ -374,16 +533,26 @@ async function refresh() {
   renderLinks(report.content?.policyLinks);
   renderGraph(report, null);
   renderPrivacyLabel(report, null);
+  renderFingerprinting(report);
+  renderDsar(report, null);
+  renderEvidenceQA(report, null, el("evidenceQuestion").value);
 
   const receiptResponse = await chrome.runtime.sendMessage({
     type: "CONSENTLENS_GET_RECEIPTS"
   });
   renderReceipts(receiptResponse.receipts);
+  const timelineResponse = await chrome.runtime.sendMessage({
+    type: "CONSENTLENS_GET_TIMELINE"
+  });
+  renderTimeline(timelineResponse.timeline);
   renderPolicyIntelligence(null);
 }
 
 el("refresh").addEventListener("click", refresh);
 el("openSettings").addEventListener("click", () => chrome.runtime.openOptionsPage());
+el("copyDsar").addEventListener("click", copyDsar);
+el("askEvidence").addEventListener("click", () => renderEvidenceQA(currentReport, currentAnalysis));
+el("evidenceQuestion").addEventListener("input", () => renderEvidenceQA(currentReport, currentAnalysis));
 el("analyzePolicy").addEventListener("click", async () => {
   const tab = await getActiveTab();
   if (!tab?.id) return;
@@ -410,6 +579,9 @@ el("analyzePolicy").addEventListener("click", async () => {
   renderPolicyIntelligence(response.analysis);
   renderGraph(currentReport, currentAnalysis);
   renderPrivacyLabel(currentReport, currentAnalysis);
+  renderFingerprinting(currentReport);
+  renderDsar(currentReport, currentAnalysis);
+  renderEvidenceQA(currentReport, currentAnalysis);
 });
 refresh().catch((error) => {
   paragraph("plainEnglish", [`Unable to read this tab: ${error.message}`]);

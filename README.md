@@ -26,7 +26,9 @@ backend/
 2. Go to `chrome://extensions`.
 3. Enable Developer mode.
 4. Click Load unpacked.
-5. Select the `extension` folder.
+5. Select the `extension` folder, not the repo root.
+
+If you point Chrome at the repo root, it will say the manifest is missing because the manifest lives at `extension/manifest.json`.
 
 ## Run The Backend
 
@@ -65,6 +67,11 @@ http://localhost:8787
 - Privacy nutrition label
 - Consent change monitoring
 - Company reputation and headquarters context
+- Data-flow visualization
+- DSAR draft generation
+- Privacy risk timeline
+- Fingerprinting heuristics
+- Evidence-grounded Q&A
 - Legal-rights awareness
 - Domain to company intelligence
 - Extension-to-backend analysis flow

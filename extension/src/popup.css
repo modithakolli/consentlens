@@ -17,7 +17,7 @@
 
 body {
   margin: 0;
-  width: 420px;
+  width: 560px;
   min-height: 560px;
   background: var(--bg);
   color: var(--ink);
@@ -258,7 +258,7 @@ li {
 
 .graphRow {
   display: grid;
-  grid-template-columns: minmax(140px, 1fr) 24px minmax(120px, 1fr) 24px minmax(160px, 1.2fr);
+  grid-template-columns: minmax(60px, 0.6fr) 20px minmax(90px, 0.9fr) 20px minmax(90px, 0.9fr) 20px minmax(130px, 1.1fr);
   gap: 8px;
   align-items: center;
   padding: 10px 12px;
@@ -283,6 +283,22 @@ li {
   text-align: center;
   color: var(--muted);
   font-size: 18px;
+}
+
+.draft {
+  width: 100%;
+  min-height: 110px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 10px;
+  resize: vertical;
+  background: #fff;
+  color: var(--ink);
+  font: inherit;
+}
+
+.draft[readonly] {
+  background: #fbfcfe;
 }
 
 a {
