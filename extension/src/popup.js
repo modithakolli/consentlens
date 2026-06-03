@@ -180,7 +180,7 @@ function renderGraph(report, analysis) {
 
     const arrow1 = document.createElement("div");
     arrow1.className = "graphArrow";
-    arrow1.textContent = "→";
+    arrow1.textContent = "->";
 
     const tracker = document.createElement("div");
     tracker.className = "graphNode";
@@ -188,7 +188,7 @@ function renderGraph(report, analysis) {
 
     const arrow2 = document.createElement("div");
     arrow2.className = "graphArrow";
-    arrow2.textContent = "→";
+    arrow2.textContent = "->";
 
     const company = document.createElement("div");
     company.className = "graphNode";
@@ -224,6 +224,12 @@ function renderPolicyIntelligence(analysis) {
   risk.textContent = `Policy risk: ${policy.risk.level} (${policy.risk.score}/100)`;
   node.appendChild(risk);
 
+  if (policy.privacyLabel) {
+    const label = document.createElement("p");
+    label.textContent = `Privacy grade: ${policy.privacyLabel.grade}. Collects: ${policy.privacyLabel.collects.length ? policy.privacyLabel.collects.join(", ") : "none detected"}. Shares: ${policy.privacyLabel.shares.length ? policy.privacyLabel.shares.join(", ") : "none detected"}. Retention: ${policy.privacyLabel.retention}.`;
+    node.appendChild(label);
+  }
+
   policy.summary.slice(0, 5).forEach((text) => {
     const p = document.createElement("p");
     p.textContent = text;
@@ -242,10 +248,38 @@ function renderPolicyIntelligence(analysis) {
     if (known.length) {
       const p = document.createElement("p");
       p.className = "note";
-      p.textContent = `Known companies: ${known.map((item) => `${item.company} (${item.purpose})`).join("; ")}`;
+      p.textContent = `Known companies: ${known.map((item) => `${item.company} (${item.purpose}, HQ: ${item.hq}, reputation: ${item.reputation})`).join("; ")}`;
       node.appendChild(p);
     }
   }
+
+  if (analysis.changeRecord?.changes) {
+    const { added, removed } = analysis.changeRecord.changes;
+    const p = document.createElement("p");
+    p.className = "note";
+    p.textContent = `Policy change monitoring: ${added.length ? `new signals ${added.join(", ")}` : "no new signals"}${removed.length ? `; removed signals ${removed.join(", ")}` : ""}.`;
+    node.appendChild(p);
+  }
+}
+
+function renderPrivacyLabel(report, analysis) {
+  const node = el("privacyLabel");
+  node.innerHTML = "";
+
+  const policy = analysis?.policy;
+  if (policy?.privacyLabel) {
+    const p = document.createElement("p");
+    p.textContent = `Privacy grade ${policy.privacyLabel.grade}: collects ${policy.privacyLabel.collects.length ? policy.privacyLabel.collects.join(", ") : "nothing obvious"}; shares ${policy.privacyLabel.shares.length ? policy.privacyLabel.shares.join(", ") : "nothing obvious"}; retention ${policy.privacyLabel.retention}.`;
+    node.appendChild(p);
+    return;
+  }
+
+  const p = document.createElement("p");
+  p.className = "note";
+  p.textContent = report.thirdParties?.length
+    ? `This site sends data to ${report.thirdParties.length} third-party domains. Click Analyze to generate a privacy nutrition label.`
+    : "No privacy nutrition label yet. Load a page with policy links or third-party requests, then click Analyze.";
+  node.appendChild(p);
 }
 
 function renderReceipts(receipts) {
@@ -339,6 +373,7 @@ async function refresh() {
   renderThirdParties(report.thirdParties);
   renderLinks(report.content?.policyLinks);
   renderGraph(report, null);
+  renderPrivacyLabel(report, null);
 
   const receiptResponse = await chrome.runtime.sendMessage({
     type: "CONSENTLENS_GET_RECEIPTS"
@@ -374,6 +409,7 @@ el("analyzePolicy").addEventListener("click", async () => {
   currentAnalysis = response.analysis;
   renderPolicyIntelligence(response.analysis);
   renderGraph(currentReport, currentAnalysis);
+  renderPrivacyLabel(currentReport, currentAnalysis);
 });
 refresh().catch((error) => {
   paragraph("plainEnglish", [`Unable to read this tab: ${error.message}`]);

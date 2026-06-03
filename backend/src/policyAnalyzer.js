@@ -66,6 +66,22 @@ function plainEnglish(signals) {
   return summary;
 }
 
+function privacyLabel(signals, region) {
+  const ids = new Set(signals.map((signal) => signal.id));
+  let grade = "A";
+  if (ids.has("ads") || ids.has("sensitive")) grade = "D";
+  else if (ids.has("sharing") || ids.has("ai")) grade = "C";
+  else if (ids.has("behavior") || ids.has("location")) grade = "B";
+
+  return {
+    grade,
+    collects: Array.from(ids).filter((id) => ["identity", "device", "location", "behavior", "payments", "sensitive"].includes(id)),
+    shares: Array.from(ids).filter((id) => ["sharing", "ads"].includes(id)),
+    retention: ids.has("retention") ? "Retention/disposal language found" : "No retention language detected",
+    rights: legalRightsForRegion(region || "IN").rights.slice(0, 4)
+  };
+}
+
 export async function analyzePolicyFromUrl({ policyUrl, pageUrl, region }) {
   if (!policyUrl) {
     throw new Error("policyUrl is required");
@@ -96,6 +112,7 @@ export async function analyzePolicyFromUrl({ policyUrl, pageUrl, region }) {
     pageUrl: pageUrl || "",
     fetchedAt: Date.now(),
     risk,
+    privacyLabel: privacyLabel(signals, region),
     summary: plainEnglish(signals),
     signals: signals.map((signal) => ({
       id: signal.id,

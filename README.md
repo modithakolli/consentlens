@@ -62,14 +62,26 @@ http://localhost:8787
 
 - Backend policy analysis
 - Policy signal extraction
+- Privacy nutrition label
+- Consent change monitoring
+- Company reputation and headquarters context
 - Legal-rights awareness
 - Domain to company intelligence
 - Extension-to-backend analysis flow
 - Tracker graph with site, tracker, and company layers
 - Extension settings for backend URL and region
+- VS Code workspace support for the extension
 
 ## Product Privacy Principle
 
 The extension performs live browsing analysis locally. Backend calls are used for deeper analysis only when the user asks, such as clicking Analyze in Policy Intelligence.
 
 The extension can be pointed at a production backend from the `Settings` page in the popup without changing code.
+
+## Security And Privacy Posture
+
+- Keep live request inspection and cookie/OAuth interception in the extension.
+- Call the backend only when the user asks for deeper policy or domain intelligence.
+- Do not store full browsing history in the backend.
+- Store consent receipts locally by default.
+- Treat legal-rights text as awareness guidance, not legal advice or compliance verdicts.

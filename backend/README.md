@@ -38,6 +38,16 @@ node server.js
 - `POST /domain-intel`
 - `GET /legal-rights?region=IN`
 
+The policy analyzer returns:
+
+- a risk score
+- a plain-English summary
+- a privacy nutrition label
+- legal-rights context for the requested region
+- extracted clause signals for policy change monitoring
+
 ## Privacy posture
 
 The extension should only call the backend when the user asks for deeper policy analysis. The backend receives the policy URL and active-site context, not the user's full browsing history.
+
+For production, keep `ALLOWED_ORIGINS` tight and point the extension at the deployed API through the popup settings page instead of hardcoding URLs in the extension bundle.

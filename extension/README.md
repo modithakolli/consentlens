@@ -13,6 +13,8 @@ It scans the current page for privacy-policy signals, cookie-consent patterns, O
 - Whether cookie consent UI may be nudging people toward acceptance
 - What an "Accept All" click may actually allow before the click continues
 - Whether the page mentions AI, profiling, model training, or automated decisions
+- What the privacy nutrition label looks like in plain English
+- Whether the policy appears to have changed since the last analysis
 - A simple low, medium, or high risk score
 
 ## Current modules
@@ -39,6 +41,8 @@ This is an assistive scanner, not a legal judgment or malware verdict. It can on
 
 It cannot guarantee detection of every hidden tracker, server-side data sharing, native-app SDK behavior, or policy text hidden behind logins.
 
+It should not be treated as a legal compliance verdict. The tool is designed to summarize, surface risk, and help a person decide.
+
 ## Version roadmap
 
 ### Version 1: Tracker + explanation foundation
@@ -64,6 +68,8 @@ It cannot guarantee detection of every hidden tracker, server-side data sharing,
 
 - Fetch and summarize linked privacy policies through the local backend
 - Extract data retention, deletion, sale/sharing, sensitive data, and AI-processing clauses
+- Show a privacy nutrition label with grade, collects, shares, retention, and rights
+- Monitor policy changes locally and flag new or removed signals
 - Add legal awareness for GDPR, CCPA/CPRA, COPPA, HIPAA, and India's DPDP Act
 - Map third-party domains to companies and likely purposes
 - Add a tracker graph showing site to third-party company relationships
@@ -92,10 +98,9 @@ The goal is to explain risk clearly enough for a normal person to pause before c
 
 ## Suggested next features
 
-- Add a full policy-page fetcher and summarizer
-- Add regional law explanations for GDPR, CCPA/CPRA, COPPA, HIPAA, and India's DPDP Act
-- Improve OAuth app-name detection on provider consent screens
-- Add community-maintained tracker and risky-domain feeds
-- Add screenshots or DOM checks for stronger dark-pattern detection
-- Add exportable consent receipts so users can remember what they accepted
-- Add optional AI summarization using a privacy-preserving local or user-approved API path
+- Add a data-flow visualization view with user -> site -> tracker -> company layers
+- Add a vendor reputation database with headquarters, purpose, and incident context
+- Add a DSAR generator for access, deletion, and export requests
+- Add a privacy risk timeline across recently visited sites
+- Add optional AI Q&A grounded in the detected policy and tracker evidence
+- Add stronger fingerprinting heuristics for canvas, WebGL, audio, and font enumeration

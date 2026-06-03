@@ -209,6 +209,34 @@ function getThirdParties(state) {
   return Array.from(merged.values());
 }
 
+function storePolicySnapshot(snapshot) {
+  return new Promise((resolve) => {
+    chrome.storage.local.get({ policySnapshots: [] }, (result) => {
+      const snapshots = Array.isArray(result.policySnapshots) ? result.policySnapshots : [];
+      const key = snapshot.policyUrl || snapshot.pageUrl || "unknown";
+      const previous = snapshots.find((item) => item.key === key) || null;
+      const currentSignals = Array.isArray(snapshot.signals) ? snapshot.signals.map((signal) => signal.id) : [];
+      const previousSignals = Array.isArray(previous?.signals) ? previous.signals : [];
+      const changes = {
+        added: currentSignals.filter((id) => !previousSignals.includes(id)),
+        removed: previousSignals.filter((id) => !currentSignals.includes(id))
+      };
+      const nextEntry = {
+        key,
+        policyUrl: snapshot.policyUrl,
+        pageUrl: snapshot.pageUrl,
+        title: snapshot.title || "",
+        signals: currentSignals,
+        savedAt: Date.now()
+      };
+
+      chrome.storage.local.set({
+        policySnapshots: [nextEntry, ...snapshots.filter((item) => item.key !== key)].slice(0, 50)
+      }, () => resolve({ previous, changes }));
+    });
+  });
+}
+
 function getSettings() {
   return new Promise((resolve) => {
     chrome.storage.local.get(DEFAULT_SETTINGS, (result) => {
@@ -279,6 +307,12 @@ async function analyzeCurrentPolicy(tabId, region = "IN") {
   }
 
   const policyPayload = await policyResponse.json();
+  const changeRecord = await storePolicySnapshot({
+    policyUrl: policyPayload.analysis.policyUrl,
+    pageUrl: policyPayload.analysis.pageUrl,
+    title: policyPayload.analysis.pageTitle || "",
+    signals: policyPayload.analysis.signals
+  });
   const domainResponse = await fetch(`${settings.apiBaseUrl}/domain-intel`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -292,6 +326,7 @@ async function analyzeCurrentPolicy(tabId, region = "IN") {
   return {
     policy: policyPayload.analysis,
     domainIntel: domainPayload.domains || [],
+    changeRecord,
     error: ""
   };
 }
