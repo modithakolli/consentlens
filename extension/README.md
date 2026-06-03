@@ -95,6 +95,8 @@ It should not be treated as a legal compliance verdict. The tool is designed to 
 5. Select the `extension` folder.
 6. Open a website and click the ConsentLens extension icon.
 
+For distribution, package the `extension` folder into a zip and upload it to the Chrome Web Store or hand it to testers. The backend should be hosted separately for policy analysis features.
+
 ## How the risk score works
 
 The score is heuristic. It increases for:

@@ -85,6 +85,21 @@ The extension performs live browsing analysis locally. Backend calls are used fo
 
 The extension can be pointed at a production backend from the `Settings` page in the popup without changing code.
 
+## Share It With Other People
+
+For other people to use this as a real product, the backend needs to be hosted somewhere public and the extension needs to be packaged for distribution.
+
+1. Host the backend at a stable HTTPS URL.
+2. Set `ALLOWED_ORIGINS` on the backend to your extension origin and production app origin.
+3. Point the extension settings page at the hosted API URL.
+4. Package the extension with:
+
+```powershell
+.\scripts\package-extension.ps1
+```
+
+That creates a zip you can upload to the Chrome Web Store or hand to a tester. The extension itself can still be installed unpacked from the `extension` folder during development.
+
 ## Security And Privacy Posture
 
 - Keep live request inspection and cookie/OAuth interception in the extension.
