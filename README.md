@@ -65,7 +65,11 @@ http://localhost:8787
 - Legal-rights awareness
 - Domain to company intelligence
 - Extension-to-backend analysis flow
+- Tracker graph with site, tracker, and company layers
+- Extension settings for backend URL and region
 
 ## Product Privacy Principle
 
 The extension performs live browsing analysis locally. Backend calls are used for deeper analysis only when the user asks, such as clicking Analyze in Policy Intelligence.
+
+The extension can be pointed at a production backend from the `Settings` page in the popup without changing code.

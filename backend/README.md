@@ -15,6 +15,22 @@ Default URL:
 http://localhost:8787
 ```
 
+## Configure For Production
+
+Set environment variables before starting the server:
+
+- `PORT`
+- `ALLOWED_ORIGINS`
+- `OPENAI_API_KEY` for future AI policy summarization
+
+Example:
+
+```powershell
+$env:PORT="8787"
+$env:ALLOWED_ORIGINS="chrome-extension://*,https://app.consentlens.com"
+node server.js
+```
+
 ## Endpoints
 
 - `GET /health`

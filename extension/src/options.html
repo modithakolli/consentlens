@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>ConsentLens Settings</title>
+    <link rel="stylesheet" href="options.css">
+  </head>
+  <body>
+    <main class="shell">
+      <section class="card">
+        <h1>ConsentLens Settings</h1>
+        <p class="lede">Point the extension at your local backend or a production API without changing code.</p>
+
+        <label>
+          <span>Backend API URL</span>
+          <input id="apiBaseUrl" type="url" placeholder="http://localhost:8787">
+        </label>
+
+        <label>
+          <span>Region</span>
+          <input id="region" type="text" placeholder="IN">
+        </label>
+
+        <div class="actions">
+          <button id="save" type="button">Save</button>
+          <button id="reset" type="button" class="secondary">Reset</button>
+        </div>
+
+        <p id="status" class="status"></p>
+      </section>
+    </main>
+    <script src="options.js"></script>
+  </body>
+</html>

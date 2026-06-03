@@ -45,6 +45,11 @@ body {
   margin-bottom: 8px;
 }
 
+.sectionActions {
+  display: flex;
+  gap: 8px;
+}
+
 .sectionHead h2 {
   margin-bottom: 0;
 }
@@ -244,6 +249,40 @@ li {
   justify-content: space-between;
   gap: 8px;
   overflow-wrap: anywhere;
+}
+
+.graph {
+  display: grid;
+  gap: 10px;
+}
+
+.graphRow {
+  display: grid;
+  grid-template-columns: minmax(140px, 1fr) 24px minmax(120px, 1fr) 24px minmax(160px, 1.2fr);
+  gap: 8px;
+  align-items: center;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fff;
+}
+
+.graphNode {
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: #f6f8fc;
+  border: 1px solid #e1e7f0;
+}
+
+.graphNode strong {
+  display: block;
+  margin-bottom: 2px;
+}
+
+.graphArrow {
+  text-align: center;
+  color: var(--muted);
+  font-size: 18px;
 }
 
 a {

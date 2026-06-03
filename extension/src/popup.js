@@ -2,6 +2,9 @@ function el(id) {
   return document.getElementById(id);
 }
 
+let currentReport = null;
+let currentAnalysis = null;
+
 function list(target, items, fallback) {
   const node = el(target);
   node.innerHTML = "";
@@ -150,6 +153,52 @@ function renderLinks(links) {
   });
 }
 
+function renderGraph(report, analysis) {
+  const node = el("trackerGraph");
+  node.innerHTML = "";
+
+  const thirdParties = report.thirdParties || [];
+  const domainIntel = analysis?.domainIntel || [];
+  const domainMap = new Map(domainIntel.map((item) => [item.host, item]));
+
+  if (!thirdParties.length) {
+    const p = document.createElement("p");
+    p.className = "note";
+    p.textContent = "No tracker graph yet. Refresh the page and load a site with third-party requests.";
+    node.appendChild(p);
+    return;
+  }
+
+  thirdParties.slice(0, 8).forEach((party) => {
+    const intel = domainMap.get(party.host) || {};
+    const row = document.createElement("div");
+    row.className = "graphRow";
+
+    const source = document.createElement("div");
+    source.className = "graphNode";
+    source.innerHTML = `<strong>${report.pageHost || "This site"}</strong><span>site</span>`;
+
+    const arrow1 = document.createElement("div");
+    arrow1.className = "graphArrow";
+    arrow1.textContent = "→";
+
+    const tracker = document.createElement("div");
+    tracker.className = "graphNode";
+    tracker.innerHTML = `<strong>${party.host}</strong><span>${party.categories.length ? party.categories.join(", ") : "unknown"}</span>`;
+
+    const arrow2 = document.createElement("div");
+    arrow2.className = "graphArrow";
+    arrow2.textContent = "→";
+
+    const company = document.createElement("div");
+    company.className = "graphNode";
+    company.innerHTML = `<strong>${intel.company || "Unknown company"}</strong><span>${intel.purpose || "Unknown purpose"}</span>`;
+
+    row.append(source, arrow1, tracker, arrow2, company);
+    node.appendChild(row);
+  });
+}
+
 function renderPolicyIntelligence(analysis) {
   const node = el("policyIntelligence");
   node.innerHTML = "";
@@ -268,6 +317,8 @@ async function refresh() {
   });
 
   const report = response.report;
+  currentReport = report;
+  currentAnalysis = null;
   const levelClass = report.risk.level.toLowerCase();
   const riskCard = el("riskCard");
   riskCard.className = `risk ${levelClass}`;
@@ -287,6 +338,7 @@ async function refresh() {
   renderStats(report.risk);
   renderThirdParties(report.thirdParties);
   renderLinks(report.content?.policyLinks);
+  renderGraph(report, null);
 
   const receiptResponse = await chrome.runtime.sendMessage({
     type: "CONSENTLENS_GET_RECEIPTS"
@@ -296,6 +348,7 @@ async function refresh() {
 }
 
 el("refresh").addEventListener("click", refresh);
+el("openSettings").addEventListener("click", () => chrome.runtime.openOptionsPage());
 el("analyzePolicy").addEventListener("click", async () => {
   const tab = await getActiveTab();
   if (!tab?.id) return;
@@ -318,7 +371,9 @@ el("analyzePolicy").addEventListener("click", async () => {
     return;
   }
 
+  currentAnalysis = response.analysis;
   renderPolicyIntelligence(response.analysis);
+  renderGraph(currentReport, currentAnalysis);
 });
 refresh().catch((error) => {
   paragraph("plainEnglish", [`Unable to read this tab: ${error.message}`]);

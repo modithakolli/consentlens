@@ -5,11 +5,26 @@ import { getDomainIntel } from "./src/domainIntel.js";
 import { legalRightsForRegion } from "./src/legalRights.js";
 
 const PORT = Number(process.env.PORT || 8787);
+const ALLOWED_ORIGINS = String(process.env.ALLOWED_ORIGINS || "*")
+  .split(",")
+  .map((origin) => origin.trim())
+  .filter(Boolean);
 
-function sendJson(response, status, body) {
+function originAllowed(origin) {
+  if (!origin) return true;
+  if (ALLOWED_ORIGINS.includes("*")) return true;
+  return ALLOWED_ORIGINS.some((pattern) => {
+    if (pattern.endsWith("*")) {
+      return origin.startsWith(pattern.slice(0, -1));
+    }
+    return origin === pattern;
+  });
+}
+
+function sendJson(response, status, body, origin = "*") {
   response.writeHead(status, {
     "Content-Type": "application/json; charset=utf-8",
-    "Access-Control-Allow-Origin": "*",
+    "Access-Control-Allow-Origin": origin,
     "Access-Control-Allow-Methods": "GET,POST,OPTIONS",
     "Access-Control-Allow-Headers": "Content-Type"
   });
@@ -35,9 +50,19 @@ function notFound(response) {
 const server = createServer(async (request, response) => {
   try {
     const url = new URL(request.url, `http://${request.headers.host}`);
+    const origin = request.headers.origin || "";
+    if (!originAllowed(origin)) {
+      sendJson(response, 403, { ok: false, error: "Origin not allowed" }, origin || "*");
+      return;
+    }
 
     if (request.method === "OPTIONS") {
-      sendJson(response, 204, {});
+      response.writeHead(204, {
+        "Access-Control-Allow-Origin": origin || "*",
+        "Access-Control-Allow-Methods": "GET,POST,OPTIONS",
+        "Access-Control-Allow-Headers": "Content-Type"
+      });
+      response.end();
       return;
     }
 
@@ -46,7 +71,7 @@ const server = createServer(async (request, response) => {
         ok: true,
         service: "consentlens-backend",
         version: "0.1.0"
-      });
+      }, origin || "*");
       return;
     }
 
@@ -54,7 +79,7 @@ const server = createServer(async (request, response) => {
       sendJson(response, 200, {
         ok: true,
         rights: legalRightsForRegion(url.searchParams.get("region") || "IN")
-      });
+      }, origin || "*");
       return;
     }
 
@@ -63,7 +88,7 @@ const server = createServer(async (request, response) => {
       sendJson(response, 200, {
         ok: true,
         domains: getDomainIntel(body.domains || [])
-      });
+      }, origin || "*");
       return;
     }
 
@@ -77,7 +102,7 @@ const server = createServer(async (request, response) => {
       sendJson(response, 200, {
         ok: true,
         analysis
-      });
+      }, origin || "*");
       return;
     }
 
@@ -86,7 +111,7 @@ const server = createServer(async (request, response) => {
     sendJson(response, 500, {
       ok: false,
       error: error.message || "Unexpected backend error"
-    });
+    }, "*");
   }
 });
 

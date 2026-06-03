@@ -23,6 +23,8 @@ It scans the current page for privacy-policy signals, cookie-consent patterns, O
 - `src/scanners/consent.js`: cookie banner detection and consent summary generation
 - `src/scanners/oauth.js`: OAuth provider, scope, access-level, and purpose-mismatch detection
 - `src/ui/consent-warning.js`: in-page "Before you accept" warning overlay
+- `src/ui/oauth-warning.js`: in-page OAuth warning overlay
+- `src/options.*`: extension settings page for backend URL and region
 - `src/content.js`: small coordinator that runs the scanners and sends reports
 - `src/popup.*`: extension popup report UI
 
@@ -65,6 +67,7 @@ It cannot guarantee detection of every hidden tracker, server-side data sharing,
 - Add legal awareness for GDPR, CCPA/CPRA, COPPA, HIPAA, and India's DPDP Act
 - Map third-party domains to companies and likely purposes
 - Add a tracker graph showing site to third-party company relationships
+- Add a settings page for backend URL and region
 
 ## Install locally
 

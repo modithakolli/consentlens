@@ -1,6 +1,10 @@
 importScripts("rules.js");
 
-const BACKEND_BASE_URL = "http://localhost:8787";
+const DEFAULT_SETTINGS = {
+  apiBaseUrl: "http://localhost:8787",
+  region: "IN"
+};
+
 const tabState = new Map();
 
 function blankState(tabId) {
@@ -205,6 +209,23 @@ function getThirdParties(state) {
   return Array.from(merged.values());
 }
 
+function getSettings() {
+  return new Promise((resolve) => {
+    chrome.storage.local.get(DEFAULT_SETTINGS, (result) => {
+      resolve({
+        apiBaseUrl: String(result.apiBaseUrl || DEFAULT_SETTINGS.apiBaseUrl).replace(/\/+$/, ""),
+        region: String(result.region || DEFAULT_SETTINGS.region).toUpperCase()
+      });
+    });
+  });
+}
+
+function setSettings(next) {
+  return new Promise((resolve) => {
+    chrome.storage.local.set(next, resolve);
+  });
+}
+
 function buildReport(tabId) {
   const state = getTabState(tabId);
   const requests = getThirdParties(state)
@@ -231,6 +252,7 @@ function bestPolicyLink(report) {
 }
 
 async function analyzeCurrentPolicy(tabId, region = "IN") {
+  const settings = await getSettings();
   const report = buildReport(tabId);
   const policy = bestPolicyLink(report);
 
@@ -242,13 +264,13 @@ async function analyzeCurrentPolicy(tabId, region = "IN") {
     };
   }
 
-  const policyResponse = await fetch(`${BACKEND_BASE_URL}/analyze-policy`, {
+  const policyResponse = await fetch(`${settings.apiBaseUrl}/analyze-policy`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
       policyUrl: policy.href,
       pageUrl: report.pageUrl,
-      region
+      region: region || settings.region
     })
   });
 
@@ -257,7 +279,7 @@ async function analyzeCurrentPolicy(tabId, region = "IN") {
   }
 
   const policyPayload = await policyResponse.json();
-  const domainResponse = await fetch(`${BACKEND_BASE_URL}/domain-intel`, {
+  const domainResponse = await fetch(`${settings.apiBaseUrl}/domain-intel`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
@@ -282,10 +304,23 @@ function storeReceipt(receipt) {
   });
 }
 
+async function getStoredSettings() {
+  return getSettings();
+}
+
 chrome.webRequest.onBeforeRequest.addListener(
   recordRequest,
   { urls: ["<all_urls>"] }
 );
+
+chrome.runtime.onInstalled.addListener(() => {
+  chrome.storage.local.get(DEFAULT_SETTINGS, (result) => {
+    chrome.storage.local.set({
+      apiBaseUrl: result.apiBaseUrl || DEFAULT_SETTINGS.apiBaseUrl,
+      region: result.region || DEFAULT_SETTINGS.region
+    });
+  });
+});
 
 chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
   if (changeInfo.status === "loading") {
@@ -328,6 +363,19 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     chrome.storage.local.get({ consentReceipts: [] }, (result) => {
       sendResponse({ ok: true, receipts: result.consentReceipts || [] });
     });
+    return true;
+  }
+
+  if (message?.type === "CONSENTLENS_GET_SETTINGS") {
+    getStoredSettings().then((settings) => sendResponse({ ok: true, settings }));
+    return true;
+  }
+
+  if (message?.type === "CONSENTLENS_SET_SETTINGS") {
+    setSettings({
+      apiBaseUrl: String(message.settings?.apiBaseUrl || DEFAULT_SETTINGS.apiBaseUrl).replace(/\/+$/, ""),
+      region: String(message.settings?.region || DEFAULT_SETTINGS.region).toUpperCase()
+    }).then(() => sendResponse({ ok: true }));
     return true;
   }
 
