@@ -72,6 +72,7 @@ http://localhost:8787
 - Privacy risk timeline
 - Fingerprinting heuristics
 - Evidence-grounded Q&A
+- App lookup for services like Amazon, Instagram, TikTok, OpenAI, and Microsoft
 - Legal-rights awareness
 - Domain to company intelligence
 - Extension-to-backend analysis flow

@@ -301,6 +301,18 @@ li {
   background: #fbfcfe;
 }
 
+.search {
+  width: 100%;
+  min-height: 36px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 8px 10px;
+  background: #fff;
+  color: var(--ink);
+  font: inherit;
+  margin-bottom: 10px;
+}
+
 a {
   color: #155cc7;
   text-decoration: none;

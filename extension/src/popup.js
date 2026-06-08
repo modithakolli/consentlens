@@ -394,6 +394,54 @@ function renderFingerprinting(report) {
   node.appendChild(suggestions);
 }
 
+function renderAppIntel(app) {
+  const node = el("appIntel");
+  node.innerHTML = "";
+
+  if (!app) {
+    const p = document.createElement("p");
+    p.className = "note";
+    p.textContent = "Search for a service to see a quick privacy profile.";
+    node.appendChild(p);
+    return;
+  }
+
+  if (!app.found) {
+    const p = document.createElement("p");
+    p.className = "note";
+    p.textContent = app.summary || "No local app record found.";
+    node.appendChild(p);
+    return;
+  }
+
+  const title = document.createElement("p");
+  title.textContent = `${app.name} - privacy score ${app.privacyScore}/100`;
+  node.appendChild(title);
+
+  const platform = document.createElement("p");
+  platform.className = "note";
+  platform.textContent = app.platform;
+  node.appendChild(platform);
+
+  const makeLine = (label, items) => {
+    const p = document.createElement("p");
+    p.textContent = `${label}: ${items.length ? items.join(", ") : "none recorded"}`;
+    return p;
+  };
+
+  node.appendChild(makeLine("Data categories", app.dataCategories || []));
+  node.appendChild(makeLine("Typical permissions", app.permissions || []));
+  node.appendChild(makeLine("Third parties", app.thirdParties || []));
+  node.appendChild(makeLine("Concerns", app.concerns || []));
+
+  if (app.summary) {
+    const summary = document.createElement("p");
+    summary.className = "note";
+    summary.textContent = app.summary;
+    node.appendChild(summary);
+  }
+}
+
 function answerEvidenceQuestion(report, analysis, question) {
   if (!report) {
     return "Load a page and click Refresh first so I have evidence to work from.";
@@ -553,6 +601,35 @@ el("openSettings").addEventListener("click", () => chrome.runtime.openOptionsPag
 el("copyDsar").addEventListener("click", copyDsar);
 el("askEvidence").addEventListener("click", () => renderEvidenceQA(currentReport, currentAnalysis));
 el("evidenceQuestion").addEventListener("input", () => renderEvidenceQA(currentReport, currentAnalysis));
+el("lookupApp").addEventListener("click", async () => {
+  const query = el("appQuery").value.trim();
+  if (!query) {
+    renderAppIntel(null);
+    return;
+  }
+
+  const node = el("appIntel");
+  node.innerHTML = "";
+  const loading = document.createElement("p");
+  loading.className = "note";
+  loading.textContent = "Looking up app intelligence...";
+  node.appendChild(loading);
+
+  const response = await chrome.runtime.sendMessage({
+    type: "CONSENTLENS_LOOKUP_APP",
+    query
+  });
+
+  if (!response.ok) {
+    renderAppIntel({
+      found: false,
+      summary: `${response.error}. Start the backend with: node backend/server.js`
+    });
+    return;
+  }
+
+  renderAppIntel(response.app);
+});
 el("analyzePolicy").addEventListener("click", async () => {
   const tab = await getActiveTab();
   if (!tab?.id) return;
@@ -582,6 +659,7 @@ el("analyzePolicy").addEventListener("click", async () => {
   renderFingerprinting(currentReport);
   renderDsar(currentReport, currentAnalysis);
   renderEvidenceQA(currentReport, currentAnalysis);
+  renderAppIntel(null);
 });
 refresh().catch((error) => {
   paragraph("plainEnglish", [`Unable to read this tab: ${error.message}`]);

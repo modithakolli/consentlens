@@ -364,6 +364,22 @@ async function analyzeCurrentPolicy(tabId, region = "IN") {
   };
 }
 
+async function lookupApp(query) {
+  const settings = await getSettings();
+  const response = await fetch(`${settings.apiBaseUrl}/app-intel`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ query })
+  });
+
+  if (!response.ok) {
+    throw new Error(`Backend app lookup failed with ${response.status}`);
+  }
+
+  const payload = await response.json();
+  return payload.app || null;
+}
+
 function storeReceipt(receipt) {
   chrome.storage.local.get({ consentReceipts: [] }, (result) => {
     const receipts = Array.isArray(result.consentReceipts) ? result.consentReceipts : [];
@@ -459,6 +475,13 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message?.type === "CONSENTLENS_ANALYZE_POLICY") {
     analyzeCurrentPolicy(message.tabId, message.region)
       .then((analysis) => sendResponse({ ok: true, analysis }))
+      .catch((error) => sendResponse({ ok: false, error: error.message }));
+    return true;
+  }
+
+  if (message?.type === "CONSENTLENS_LOOKUP_APP") {
+    lookupApp(message.query || "")
+      .then((app) => sendResponse({ ok: true, app }))
       .catch((error) => sendResponse({ ok: false, error: error.message }));
     return true;
   }

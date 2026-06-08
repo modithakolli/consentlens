@@ -15,6 +15,7 @@ It scans the current page for privacy-policy signals, cookie-consent patterns, O
 - Whether the page mentions AI, profiling, model training, or automated decisions
 - What the privacy nutrition label looks like in plain English
 - Whether the policy appears to have changed since the last analysis
+- A quick app lookup for services like Amazon, Instagram, TikTok, OpenAI, and Microsoft
 - The data-flow path from you to the site to third parties
 - A local privacy risk timeline across recent sites
 - A DSAR draft for access, deletion, or export requests
@@ -76,6 +77,7 @@ It should not be treated as a legal compliance verdict. The tool is designed to 
 - Extract data retention, deletion, sale/sharing, sensitive data, and AI-processing clauses
 - Show a privacy nutrition label with grade, collects, shares, retention, and rights
 - Monitor policy changes locally and flag new or removed signals
+- Add an app lookup profile for common services so the product can speak beyond websites
 - Render a data-flow visualization from you to the site to third parties and companies
 - Show a local privacy risk timeline based on recent scans
 - Generate a DSAR draft from the detected evidence

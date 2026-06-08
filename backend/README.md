@@ -36,6 +36,7 @@ node server.js
 - `GET /health`
 - `POST /analyze-policy`
 - `POST /domain-intel`
+- `POST /app-intel`
 - `GET /legal-rights?region=IN`
 
 The policy analyzer returns:
@@ -45,6 +46,7 @@ The policy analyzer returns:
 - a privacy nutrition label
 - legal-rights context for the requested region
 - extracted clause signals for policy change monitoring
+- a local app privacy profile for well-known services
 
 ## Privacy posture
 

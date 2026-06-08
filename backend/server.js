@@ -3,6 +3,7 @@ import { URL } from "node:url";
 import { analyzePolicyFromUrl } from "./src/policyAnalyzer.js";
 import { getDomainIntel } from "./src/domainIntel.js";
 import { legalRightsForRegion } from "./src/legalRights.js";
+import { lookupApp } from "./src/appIntel.js";
 
 const PORT = Number(process.env.PORT || 8787);
 const ALLOWED_ORIGINS = String(process.env.ALLOWED_ORIGINS || "*")
@@ -88,6 +89,15 @@ const server = createServer(async (request, response) => {
       sendJson(response, 200, {
         ok: true,
         domains: getDomainIntel(body.domains || [])
+      }, origin || "*");
+      return;
+    }
+
+    if (request.method === "POST" && url.pathname === "/app-intel") {
+      const body = await readJson(request);
+      sendJson(response, 200, {
+        ok: true,
+        app: lookupApp(body.query || body.name || "")
       }, origin || "*");
       return;
     }
