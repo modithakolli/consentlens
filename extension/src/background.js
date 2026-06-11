@@ -6,6 +6,48 @@ const DEFAULT_SETTINGS = {
 };
 
 const tabState = new Map();
+const MESSAGE_TYPES = new Set([
+  "CONSENTLENS_CONTENT_REPORT",
+  "CONSENTLENS_GET_REPORT",
+  "CONSENTLENS_STORE_RECEIPT",
+  "CONSENTLENS_GET_RECEIPTS",
+  "CONSENTLENS_GET_TIMELINE",
+  "CONSENTLENS_GET_SETTINGS",
+  "CONSENTLENS_SET_SETTINGS",
+  "CONSENTLENS_ANALYZE_POLICY",
+  "CONSENTLENS_LOOKUP_APP"
+]);
+
+function isObject(value) {
+  return value !== null && typeof value === "object" && !Array.isArray(value);
+}
+
+function validTabId(tabId) {
+  return Number.isInteger(tabId) && tabId >= 0;
+}
+
+function logError(source, error, details = {}) {
+  const entry = {
+    source,
+    message: error?.message || String(error || "Unknown error"),
+    details,
+    loggedAt: Date.now()
+  };
+  chrome.storage.local.get({ errorLog: [] }, (result) => {
+    const errorLog = Array.isArray(result.errorLog) ? result.errorLog : [];
+    chrome.storage.local.set({ errorLog: [entry, ...errorLog].slice(0, 50) });
+  });
+}
+
+function validMessage(message, sender) {
+  if (!isObject(message) || !MESSAGE_TYPES.has(message.type)) return false;
+  if (message.type === "CONSENTLENS_CONTENT_REPORT") return Boolean(sender.tab?.id !== undefined && isObject(message.report));
+  if (["CONSENTLENS_GET_REPORT", "CONSENTLENS_ANALYZE_POLICY"].includes(message.type)) return validTabId(message.tabId);
+  if (message.type === "CONSENTLENS_STORE_RECEIPT") return isObject(message.receipt);
+  if (message.type === "CONSENTLENS_SET_SETTINGS") return isObject(message.settings);
+  if (message.type === "CONSENTLENS_LOOKUP_APP") return typeof message.query === "string" && message.query.length <= 120;
+  return true;
+}
 
 function blankState(tabId) {
   return {
@@ -97,6 +139,11 @@ function scoreReport(state) {
   if (content.cookieBanner?.hasPreselectedOptionalToggles) {
     score += 10;
     reasons.push("Optional analytics, marketing, personalization, or partner toggles appear to be preselected.");
+  }
+
+  if (content.cookieBanner?.rejectDeemphasized) {
+    score += 8;
+    reasons.push("The accept action appears visually stronger than the reject option.");
   }
 
   if (content.cookieBanner?.hasBanner && content.cookieBanner?.mentionsThirdParties) {
@@ -336,6 +383,7 @@ async function analyzeCurrentPolicy(tabId, region = "IN") {
   });
 
   if (!policyResponse.ok) {
+    logError("policy-analysis", new Error(`Backend policy analysis failed with ${policyResponse.status}`), { tabId });
     throw new Error(`Backend policy analysis failed with ${policyResponse.status}`);
   }
 
@@ -420,6 +468,12 @@ chrome.tabs.onRemoved.addListener((tabId) => {
 });
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+  if (!validMessage(message, sender)) {
+    logError("message-validation", new Error("Rejected invalid extension message"), { type: message?.type || "unknown" });
+    sendResponse({ ok: false, error: "Invalid message" });
+    return true;
+  }
+
   if (message?.type === "CONSENTLENS_CONTENT_REPORT" && sender.tab?.id !== undefined) {
     const state = getTabState(sender.tab.id);
     state.contentReport = message.report;

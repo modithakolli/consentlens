@@ -1,0 +1,18 @@
+{
+  "openid": { "score": 1, "note": "Basic sign-in identity." },
+  "profile": { "score": 1, "note": "Basic profile details." },
+  "email": { "score": 1, "note": "Email address access." },
+  "offline_access": { "score": 4, "note": "Can keep access after you leave unless revoked." },
+  "gmail.readonly": { "score": 5, "note": "Can read Gmail messages." },
+  "gmail.modify": { "score": 6, "note": "Can read and change Gmail messages." },
+  "gmail.send": { "score": 6, "note": "Can send email as you." },
+  "drive": { "score": 6, "note": "Broad Google Drive access." },
+  "drive.readonly": { "score": 5, "note": "Can read Google Drive files." },
+  "calendar": { "score": 4, "note": "Calendar access." },
+  "contacts": { "score": 5, "note": "Contacts access." },
+  "mail.read": { "score": 5, "note": "Can read Microsoft mail." },
+  "mail.readwrite": { "score": 6, "note": "Can read and change Microsoft mail." },
+  "files.readwrite.all": { "score": 6, "note": "Broad Microsoft file read/write access." },
+  "user.read": { "score": 1, "note": "Basic Microsoft profile access." },
+  "contacts.read": { "score": 4, "note": "Microsoft contacts access." }
+}

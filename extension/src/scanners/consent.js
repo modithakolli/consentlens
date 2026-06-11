@@ -34,6 +34,16 @@
     const acceptButtons = findVisibleControls(/accept all|allow all|i agree|accept cookies/i);
     const rejectButtons = findVisibleControls(/reject all|decline|necessary only|continue without accepting/i);
     const acceptEmphasis = acceptButtons.length > rejectButtons.length;
+    const rejectDeemphasized = acceptButtons.some((accept) => (
+      rejectButtons.length === 0 || rejectButtons.every((reject) => visualWeight(accept) > visualWeight(reject) * 1.4)
+    ));
+    const darkPatterns = [
+      !hasReject ? "No equally clear reject choice detected." : "",
+      hasHiddenReject ? "Reject language exists, but the reject control appears hidden." : "",
+      acceptEmphasis ? "Accept controls are more numerous than reject controls." : "",
+      rejectDeemphasized ? "Accept action appears visually stronger than reject." : "",
+      hasPreselectedOptionalToggles ? "Optional tracking choices appear preselected." : ""
+    ].filter(Boolean);
 
     return {
       hasBanner,
@@ -45,7 +55,9 @@
       hasHiddenReject,
       hasPreselectedOptionalToggles,
       acceptEmphasis,
-      possibleDarkPattern: hasBanner && hasAccept && (!hasReject || hasHiddenReject || acceptEmphasis || hasPreselectedOptionalToggles)
+      rejectDeemphasized,
+      darkPatterns,
+      possibleDarkPattern: hasBanner && hasAccept && darkPatterns.length > 0
     };
   }
 
@@ -62,6 +74,15 @@
 
   function findVisibleControl(pattern) {
     return findVisibleControls(pattern)[0] || null;
+  }
+
+  function visualWeight(node) {
+    const rect = node.getBoundingClientRect();
+    const style = getComputedStyle(node);
+    const area = rect.width * rect.height;
+    const colorWeight = style.backgroundColor && style.backgroundColor !== "rgba(0, 0, 0, 0)" ? 1.25 : 1;
+    const fontWeight = Number.parseInt(style.fontWeight, 10) >= 600 ? 1.15 : 1;
+    return area * colorWeight * fontWeight;
   }
 
   function findPreselectedOptionalToggles() {
@@ -124,6 +145,14 @@
         kind: "preselected",
         label: "Preselected optional tracking",
         detail: "Optional analytics, marketing, personalization, or partner toggles appear to be enabled by default."
+      });
+    }
+
+    if (cookieBanner.rejectDeemphasized) {
+      summary.push({
+        kind: "deemphasizedReject",
+        label: "Reject is less prominent",
+        detail: "The accept action appears visually stronger than the reject option."
       });
     }
 

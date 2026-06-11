@@ -26,7 +26,8 @@ It scans the current page for privacy-policy signals, cookie-consent patterns, O
 ## Current modules
 
 - `src/background.js`: network monitor, tab state, risk score, browser badge
-- `src/rules.js`: local rules for tracker domains, data signals, sharing signals, and OAuth scope risk
+- `src/rules.js`: rules runtime that exposes scanner helpers
+- `src/intel/*.json`: tracker domains, OAuth scope risk, privacy signals, and dark-pattern terms
 - `src/scanners/page.js`: page text, policy links, and visible third-party domain hints
 - `src/scanners/consent.js`: cookie banner detection and consent summary generation
 - `src/scanners/oauth.js`: OAuth provider, scope, access-level, and purpose-mismatch detection
@@ -36,6 +37,8 @@ It scans the current page for privacy-policy signals, cookie-consent patterns, O
 - `src/options.*`: extension settings page for backend URL and region
 - `src/content.js`: small coordinator that runs the scanners and sends reports
 - `src/popup.*`: extension popup report UI
+- `src/popup/`: popup rendering and Chrome API modules
+- `test/scan-fixtures.mjs`: 50-fixture scanner regression harness
 
 ## Current MVP limits
 
@@ -98,6 +101,14 @@ It should not be treated as a legal compliance verdict. The tool is designed to 
 6. Open a website and click the ConsentLens extension icon.
 
 For distribution, package the `extension` folder into a zip and upload it to the Chrome Web Store or hand it to testers. The backend should be hosted separately for policy analysis features.
+
+## Test locally
+
+Run the scanner fixture harness from the project root:
+
+```powershell
+node extension/test/scan-fixtures.mjs
+```
 
 ## How the risk score works
 
