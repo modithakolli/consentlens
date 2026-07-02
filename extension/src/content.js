@@ -1,21 +1,8 @@
-async function loadTrackerIntel() {
-  try {
-    const response = await fetch(chrome.runtime.getURL("shared/tracker-intel.json"));
-    if (!response.ok) return;
-    const records = await response.json();
-    window.ConsentLensRules?.setTrackerIntel?.(records);
-  } catch (error) {
-    // Fall back to the bundled tracker rules when the shared intel file is unavailable.
-  }
-}
-
-(async function bootConsentLens() {
+(function bootConsentLens() {
   if (window.__consentLensScanNow) {
     window.__consentLensScanNow();
     return;
   }
-
-  await loadTrackerIntel();
 
   function buildReport() {
     const page = window.ConsentLensPageScanner.scan();

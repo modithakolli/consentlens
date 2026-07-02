@@ -34,10 +34,8 @@ node server.js
 ## Endpoints
 
 - `GET /health`
-- `GET /tracker-intel`
 - `POST /analyze-policy`
 - `POST /domain-intel`
-- `POST /app-intel`
 - `GET /legal-rights?region=IN`
 
 The policy analyzer returns:
@@ -45,18 +43,11 @@ The policy analyzer returns:
 - a risk score
 - a plain-English summary
 - a privacy nutrition label
-- extracted control signals for training, temporary chats, activity controls, delete-account, and export paths
 - legal-rights context for the requested region
 - extracted clause signals for policy change monitoring
-- a local app privacy profile for well-known services
-- retention guidance when the policy names a timeline
-
-Tracker and company lookups are driven by the shared dataset in `extension/shared/tracker-intel.json` so the extension and backend use the same labels.
 
 ## Privacy posture
 
 The extension should only call the backend when the user asks for deeper policy analysis. The backend receives the policy URL and active-site context, not the user's full browsing history.
 
 For production, keep `ALLOWED_ORIGINS` tight and point the extension at the deployed API through the popup settings page instead of hardcoding URLs in the extension bundle.
-
-Policy analysis rejects localhost and private-network policy URLs so a hostile page cannot use the backend as an internal-network fetch proxy.

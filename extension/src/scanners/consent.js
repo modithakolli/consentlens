@@ -1,6 +1,4 @@
 (function attachConsentScanner(globalScope) {
-  const CONSENT_CONTEXT_TERMS = /cookie|consent|privacy|tracking|third-party|third party|marketing|advertising|personal data|preferences|manage settings|manage choices|reject all|accept all|opt in|opt out|gdpr|ccpa|cpra|dpdp/i;
-
   function findConsentText() {
     const candidates = Array.from(document.querySelectorAll(
       "[id*='cookie' i], [class*='cookie' i], [id*='consent' i], [class*='consent' i], [id*='onetrust' i], [class*='onetrust' i], [role='dialog'], dialog"
@@ -12,22 +10,6 @@
       .sort((a, b) => b.length - a.length);
 
     return (consentCandidates[0] || "").slice(0, 12000);
-  }
-
-  function closestConsentContext(control) {
-    let node = control;
-    for (let depth = 0; node && depth < 4; depth += 1, node = node.parentElement) {
-      const text = ConsentLensPageScanner.nodeText(node);
-      if (CONSENT_CONTEXT_TERMS.test(text)) {
-        return text;
-      }
-    }
-    return "";
-  }
-
-  function hasConsentContext(control, label) {
-    const text = `${label || ""} ${closestConsentContext(control)}`.trim();
-    return CONSENT_CONTEXT_TERMS.test(text);
   }
 
   function signalText(fullText, consentText) {
@@ -52,16 +34,6 @@
     const acceptButtons = findVisibleControls(/accept all|allow all|i agree|accept cookies/i);
     const rejectButtons = findVisibleControls(/reject all|decline|necessary only|continue without accepting/i);
     const acceptEmphasis = acceptButtons.length > rejectButtons.length;
-    const rejectDeemphasized = acceptButtons.some((accept) => (
-      rejectButtons.length === 0 || rejectButtons.every((reject) => visualWeight(accept) > visualWeight(reject) * 1.4)
-    ));
-    const darkPatterns = [
-      !hasReject ? "No equally clear reject choice detected." : "",
-      hasHiddenReject ? "Reject language exists, but the reject control appears hidden." : "",
-      acceptEmphasis ? "Accept controls are more numerous than reject controls." : "",
-      rejectDeemphasized ? "Accept action appears visually stronger than reject." : "",
-      hasPreselectedOptionalToggles ? "Optional tracking choices appear preselected." : ""
-    ].filter(Boolean);
 
     return {
       hasBanner,
@@ -73,9 +45,7 @@
       hasHiddenReject,
       hasPreselectedOptionalToggles,
       acceptEmphasis,
-      rejectDeemphasized,
-      darkPatterns,
-      possibleDarkPattern: hasBanner && hasAccept && darkPatterns.length > 0
+      possibleDarkPattern: hasBanner && hasAccept && (!hasReject || hasHiddenReject || acceptEmphasis || hasPreselectedOptionalToggles)
     };
   }
 
@@ -92,15 +62,6 @@
 
   function findVisibleControl(pattern) {
     return findVisibleControls(pattern)[0] || null;
-  }
-
-  function visualWeight(node) {
-    const rect = node.getBoundingClientRect();
-    const style = getComputedStyle(node);
-    const area = rect.width * rect.height;
-    const colorWeight = style.backgroundColor && style.backgroundColor !== "rgba(0, 0, 0, 0)" ? 1.25 : 1;
-    const fontWeight = Number.parseInt(style.fontWeight, 10) >= 600 ? 1.15 : 1;
-    return area * colorWeight * fontWeight;
   }
 
   function findPreselectedOptionalToggles() {
@@ -166,14 +127,6 @@
       });
     }
 
-    if (cookieBanner.rejectDeemphasized) {
-      summary.push({
-        kind: "deemphasizedReject",
-        label: "Reject is less prominent",
-        detail: "The accept action appears visually stronger than the reject option."
-      });
-    }
-
     return summary;
   }
 
@@ -194,24 +147,8 @@
     };
   }
 
-  function consentClickAllowed(control) {
-    const label = (
-      control?.innerText ||
-      control?.value ||
-      control?.getAttribute("aria-label") ||
-      control?.getAttribute("title") ||
-      ""
-    ).replace(/\s+/g, " ").trim();
-
-    if (!label || label.length > 80) return false;
-    const isConsentLabel = /^(accept all|allow all|accept cookies|accept privacy settings|accept tracking|allow cookies|agree|i agree|yes, i agree|ok|okay|got it)$/i.test(label);
-    if (!isConsentLabel) return false;
-    return hasConsentContext(control, label);
-  }
-
   globalScope.ConsentLensConsentScanner = {
     scan,
-    buildSummary,
-    consentClickAllowed
+    buildSummary
   };
 })(window);

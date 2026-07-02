@@ -6,89 +6,6 @@ const DEFAULT_SETTINGS = {
 };
 
 const tabState = new Map();
-let trackerIntelReady = null;
-const MESSAGE_TYPES = new Set([
-  "CONSENTLENS_CONTENT_REPORT",
-  "CONSENTLENS_GET_REPORT",
-  "CONSENTLENS_STORE_RECEIPT",
-  "CONSENTLENS_GET_RECEIPTS",
-  "CONSENTLENS_GET_TIMELINE",
-  "CONSENTLENS_GET_SETTINGS",
-  "CONSENTLENS_SET_SETTINGS",
-  "CONSENTLENS_ANALYZE_POLICY",
-  "CONSENTLENS_LOOKUP_APP"
-]);
-
-function isObject(value) {
-  return value !== null && typeof value === "object" && !Array.isArray(value);
-}
-
-function sanitizeText(value, max = 200) {
-  return String(value || "")
-    .replace(/\s+/g, " ")
-    .trim()
-    .slice(0, max);
-}
-
-function validTabId(tabId) {
-  return Number.isInteger(tabId) && tabId >= 0;
-}
-
-function logError(source, error, details = {}) {
-  const entry = {
-    source,
-    message: error?.message || String(error || "Unknown error"),
-    details,
-    loggedAt: Date.now()
-  };
-  chrome.storage.local.get({ errorLog: [] }, (result) => {
-    const errorLog = Array.isArray(result.errorLog) ? result.errorLog : [];
-    chrome.storage.local.set({ errorLog: [entry, ...errorLog].slice(0, 50) });
-  });
-}
-
-function validMessage(message, sender) {
-  if (!isObject(message) || !MESSAGE_TYPES.has(message.type)) return false;
-  if (message.type === "CONSENTLENS_CONTENT_REPORT") return Boolean(sender.tab?.id !== undefined && isObject(message.report));
-  if (["CONSENTLENS_GET_REPORT", "CONSENTLENS_ANALYZE_POLICY"].includes(message.type)) return validTabId(message.tabId);
-  if (message.type === "CONSENTLENS_STORE_RECEIPT") return isObject(message.receipt);
-  if (message.type === "CONSENTLENS_SET_SETTINGS") return isObject(message.settings);
-  if (message.type === "CONSENTLENS_LOOKUP_APP") return typeof message.query === "string" && message.query.length <= 120;
-  return true;
-}
-
-function sanitizeReceipt(receipt) {
-  const summary = Array.isArray(receipt.summary)
-    ? receipt.summary.slice(0, 5).map((item) => ({
-        label: sanitizeText(item?.label, 80),
-        detail: sanitizeText(item?.detail, 180)
-      })).filter((item) => item.label || item.detail)
-    : [];
-
-  return {
-    kind: sanitizeText(receipt.kind, 40) || "unknown",
-    pageUrl: sanitizeText(receipt.pageUrl, 500),
-    pageTitle: sanitizeText(receipt.pageTitle, 120),
-    actionLabel: sanitizeText(receipt.actionLabel, 80),
-    acceptedAt: Number.isFinite(Number(receipt.acceptedAt)) ? Number(receipt.acceptedAt) : Date.now(),
-    summary
-  };
-}
-
-function sanitizeSettings(settings) {
-  const next = {};
-  try {
-    const apiBaseUrl = new URL(String(settings.apiBaseUrl || DEFAULT_SETTINGS.apiBaseUrl));
-    if (!["http:", "https:"].includes(apiBaseUrl.protocol)) throw new Error("apiBaseUrl must use http or https");
-    next.apiBaseUrl = apiBaseUrl.toString().replace(/\/+$/, "");
-  } catch (error) {
-    next.apiBaseUrl = DEFAULT_SETTINGS.apiBaseUrl;
-  }
-
-  const region = String(settings.region || DEFAULT_SETTINGS.region).trim().toUpperCase().slice(0, 8);
-  next.region = region || DEFAULT_SETTINGS.region;
-  return next;
-}
 
 function blankState(tabId) {
   return {
@@ -96,8 +13,6 @@ function blankState(tabId) {
     pageUrl: "",
     pageHost: "",
     requests: {},
-    siteIntel: null,
-    siteIntelHost: "",
     contentReport: null,
     updatedAt: Date.now()
   };
@@ -116,21 +31,6 @@ function safeHost(url) {
   } catch (error) {
     return "";
   }
-}
-
-async function hydrateTrackerIntel() {
-  if (trackerIntelReady) return trackerIntelReady;
-  trackerIntelReady = (async () => {
-    try {
-      const response = await fetch(chrome.runtime.getURL("shared/tracker-intel.json"));
-      if (!response.ok) return;
-      const records = await response.json();
-      ConsentLensRules.setTrackerIntel?.(records);
-    } catch (error) {
-      logError("tracker-intel", error);
-    }
-  })();
-  return trackerIntelReady;
 }
 
 function isThirdParty(requestHost, pageHost) {
@@ -199,11 +99,6 @@ function scoreReport(state) {
     reasons.push("Optional analytics, marketing, personalization, or partner toggles appear to be preselected.");
   }
 
-  if (content.cookieBanner?.rejectDeemphasized) {
-    score += 8;
-    reasons.push("The accept action appears visually stronger than the reject option.");
-  }
-
   if (content.cookieBanner?.hasBanner && content.cookieBanner?.mentionsThirdParties) {
     score += 10;
     reasons.push("Cookie notice says data may be collected or used with third-party partners.");
@@ -245,7 +140,7 @@ function scoreReport(state) {
   }
 
   const capped = Math.max(0, Math.min(100, Math.round(score)));
-  const level = capped >= 85 ? "Critical" : capped >= 65 ? "High" : capped >= 35 ? "Medium" : "Low";
+  const level = capped >= 65 ? "High" : capped >= 25 ? "Medium" : "Low";
 
   return {
     score: capped,
@@ -288,8 +183,8 @@ function buildPlainEnglish(state) {
 
 function updateBadge(tabId, report) {
   const level = report.risk.level;
-  const text = level === "Critical" ? "CRIT" : level === "High" ? "HIGH" : level === "Medium" ? "MED" : "LOW";
-  const color = level === "Critical" ? "#7c1212" : level === "High" ? "#c93535" : level === "Medium" ? "#b26a00" : "#17895b";
+  const text = level === "High" ? "HIGH" : level === "Medium" ? "MED" : "LOW";
+  const color = level === "High" ? "#c93535" : level === "Medium" ? "#b26a00" : "#17895b";
   chrome.action.setBadgeText({ tabId, text });
   chrome.action.setBadgeBackgroundColor({ tabId, color });
   chrome.action.setTitle({
@@ -365,10 +260,6 @@ function storeActivityTimeline(report, risk) {
         level: risk.level,
         thirdParties: report.thirdParties?.length || 0,
         fingerprinting: Boolean(report.content?.fingerprinting?.detected),
-        siteIntel: report.siteIntel ? {
-          name: sanitizeText(report.siteIntel.name, 80),
-          privacyScore: report.siteIntel.privacyScore
-        } : null,
         savedAt: Date.now()
       };
 
@@ -409,8 +300,7 @@ function buildReport(tabId) {
     risk: scoreReport(state),
     plainEnglish: buildPlainEnglish(state),
     content: state.contentReport,
-    thirdParties: requests,
-    siteIntel: state.siteIntel
+    thirdParties: requests
   };
 }
 
@@ -446,7 +336,6 @@ async function analyzeCurrentPolicy(tabId, region = "IN") {
   });
 
   if (!policyResponse.ok) {
-    logError("policy-analysis", new Error(`Backend policy analysis failed with ${policyResponse.status}`), { tabId });
     throw new Error(`Backend policy analysis failed with ${policyResponse.status}`);
   }
 
@@ -475,79 +364,10 @@ async function analyzeCurrentPolicy(tabId, region = "IN") {
   };
 }
 
-async function lookupApp(query) {
-  const settings = await getSettings();
-  const response = await fetch(`${settings.apiBaseUrl}/app-intel`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ query })
-  });
-
-  if (!response.ok) {
-    throw new Error(`Backend app lookup failed with ${response.status}`);
-  }
-
-  const payload = await response.json();
-  return payload.app || null;
-}
-
-async function lookupDomain(hostname) {
-  const settings = await getSettings();
-  const response = await fetch(`${settings.apiBaseUrl}/domain-intel`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ domains: [hostname] })
-  });
-
-  if (!response.ok) {
-    throw new Error(`Backend domain lookup failed with ${response.status}`);
-  }
-
-  const payload = await response.json();
-  return payload.domains?.[0] || null;
-}
-
-async function refreshSiteIntel(state) {
-  const host = state.pageHost || safeHost(state.pageUrl || "");
-  if (!host) {
-    state.siteIntel = null;
-    state.siteIntelHost = "";
-    return null;
-  }
-
-  if (state.siteIntelHost === host && state.siteIntel) {
-    return state.siteIntel;
-  }
-
-  try {
-    const domain = await lookupDomain(host);
-    const app = domain?.known ? null : await lookupApp(host).catch(() => null);
-    state.siteIntel = domain?.known ? domain : (app || domain || null);
-    state.siteIntelHost = host;
-    return state.siteIntel;
-  } catch (error) {
-    logError("site-intel", error, { host });
-    state.siteIntel = {
-      host,
-      company: "Unknown",
-      category: "unknown",
-      risk: "unknown",
-      purpose: "Unknown site profile",
-      hq: "Unknown",
-      reputation: "Unknown",
-      known: false,
-      found: false,
-      summary: "No local site profile yet."
-    };
-    state.siteIntelHost = host;
-    return null;
-  }
-}
-
 function storeReceipt(receipt) {
   chrome.storage.local.get({ consentReceipts: [] }, (result) => {
     const receipts = Array.isArray(result.consentReceipts) ? result.consentReceipts : [];
-    const next = [sanitizeReceipt(receipt), ...receipts].slice(0, 50);
+    const next = [receipt, ...receipts].slice(0, 50);
     chrome.storage.local.set({ consentReceipts: next });
   });
 }
@@ -563,15 +383,12 @@ chrome.webRequest.onBeforeRequest.addListener(
 
 chrome.runtime.onInstalled.addListener(() => {
   chrome.storage.local.get(DEFAULT_SETTINGS, (result) => {
-    chrome.storage.local.set(sanitizeSettings(result));
+    chrome.storage.local.set({
+      apiBaseUrl: result.apiBaseUrl || DEFAULT_SETTINGS.apiBaseUrl,
+      region: result.region || DEFAULT_SETTINGS.region
+    });
   });
 });
-
-chrome.runtime.onStartup.addListener(() => {
-  hydrateTrackerIntel();
-});
-
-hydrateTrackerIntel();
 
 chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
   if (changeInfo.status === "loading") {
@@ -587,24 +404,16 @@ chrome.tabs.onRemoved.addListener((tabId) => {
 });
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-  if (!validMessage(message, sender)) {
-    logError("message-validation", new Error("Rejected invalid extension message"), { type: message?.type || "unknown" });
-    sendResponse({ ok: false, error: "Invalid message" });
-    return true;
-  }
-
   if (message?.type === "CONSENTLENS_CONTENT_REPORT" && sender.tab?.id !== undefined) {
     const state = getTabState(sender.tab.id);
     state.contentReport = message.report;
     state.pageUrl = message.report.pageUrl || state.pageUrl;
     state.pageHost = safeHost(message.report.pageUrl || state.pageUrl);
     state.updatedAt = Date.now();
-    refreshSiteIntel(state).finally(() => {
-      const report = buildReport(sender.tab.id);
-      updateBadge(sender.tab.id, report);
-      storeActivityTimeline(report, report.risk);
-      sendResponse({ ok: true });
-    });
+    const report = buildReport(sender.tab.id);
+    updateBadge(sender.tab.id, report);
+    storeActivityTimeline(report, report.risk);
+    sendResponse({ ok: true });
     return true;
   }
 
@@ -640,7 +449,10 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   }
 
   if (message?.type === "CONSENTLENS_SET_SETTINGS") {
-    setSettings(sanitizeSettings(message.settings || {})).then(() => sendResponse({ ok: true }));
+    setSettings({
+      apiBaseUrl: String(message.settings?.apiBaseUrl || DEFAULT_SETTINGS.apiBaseUrl).replace(/\/+$/, ""),
+      region: String(message.settings?.region || DEFAULT_SETTINGS.region).toUpperCase()
+    }).then(() => sendResponse({ ok: true }));
     return true;
   }
 
@@ -651,9 +463,22 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     return true;
   }
 
-  if (message?.type === "CONSENTLENS_LOOKUP_APP") {
-    lookupApp(message.query || "")
-      .then((app) => sendResponse({ ok: true, app }))
+
+  if (message?.type === "CONSENTLENS_GET_DOMAIN_INTEL") {
+    getSettings()
+      .then(async (settings) => {
+        const report = buildReport(message.tabId);
+        const domainResponse = await fetch(`${settings.apiBaseUrl}/domain-intel`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            domains: report.thirdParties.map((party) => party.host)
+          })
+        });
+        if (!domainResponse.ok) throw new Error(`Backend domain intelligence failed with ${domainResponse.status}`);
+        const payload = await domainResponse.json();
+        sendResponse({ ok: true, domains: payload.domains || [] });
+      })
       .catch((error) => sendResponse({ ok: false, error: error.message }));
     return true;
   }

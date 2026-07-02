@@ -14,7 +14,11 @@
     ).replace(/\s+/g, " ").trim();
 
     if (!label || label.length > 80) return null;
-    if (!ConsentLensConsentScanner.consentClickAllowed(control)) return null;
+
+    const isAccept = /^(accept all|allow all|agree|i agree|accept cookies|accept|ok|got it|yes, i agree)$/i.test(label);
+    const isManage = /manage|settings|preferences|customize|reject|decline|necessary/i.test(label);
+
+    if (!isAccept || isManage) return null;
 
     return { control, label };
   }

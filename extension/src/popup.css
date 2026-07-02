@@ -136,10 +136,6 @@ article,
   background: var(--high);
 }
 
-.risk.critical .meter span {
-  background: #7c1212;
-}
-
 .risk.medium #riskLevel {
   color: var(--medium);
 }
@@ -150,10 +146,6 @@ article,
 
 .risk.low #riskLevel {
   color: var(--low);
-}
-
-.risk.critical #riskLevel {
-  color: #7c1212;
 }
 
 .grid {
@@ -309,18 +301,6 @@ li {
   background: #fbfcfe;
 }
 
-.search {
-  width: 100%;
-  min-height: 36px;
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  padding: 8px 10px;
-  background: #fff;
-  color: var(--ink);
-  font: inherit;
-  margin-bottom: 10px;
-}
-
 a {
   color: #155cc7;
   text-decoration: none;
@@ -328,4 +308,95 @@ a {
 
 a:hover {
   text-decoration: underline;
+}
+
+
+.labelGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.labelItem {
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 9px;
+  min-height: 58px;
+  background: #fff;
+}
+
+.labelItem strong {
+  display: block;
+  font-size: 15px;
+  margin-bottom: 2px;
+}
+
+.labelItem span {
+  color: var(--muted);
+}
+
+details {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 12px;
+}
+
+details > summary {
+  cursor: pointer;
+  font-weight: 700;
+  list-style: none;
+}
+
+details > summary::-webkit-details-marker {
+  display: none;
+}
+
+details > summary::after {
+  content: "+";
+  float: right;
+  color: var(--muted);
+}
+
+details[open] > summary::after {
+  content: "-";
+}
+
+details > *:not(summary) {
+  margin-top: 10px;
+}
+
+.faqBar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.graphSvg {
+  width: 100%;
+  min-height: 250px;
+  display: block;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fbfcff;
+}
+
+.flowLine {
+  stroke: #9aa8bd;
+  stroke-width: 1.5;
+}
+
+.flowNode {
+  stroke: #d8dfeb;
+  stroke-width: 1;
+}
+
+.flowText {
+  fill: #162033;
+  font: 12px system-ui, sans-serif;
+}
+
+.flowSubtext {
+  fill: #667085;
+  font: 10px system-ui, sans-serif;
 }

@@ -1,3 +1,5 @@
+import dns from "node:dns/promises";
+import net from "node:net";
 import { legalRightsForRegion } from "./legalRights.js";
 
 const SIGNALS = [
@@ -13,16 +15,123 @@ const SIGNALS = [
   { id: "retention", label: "Data retention", pattern: /retain|retention|as long as necessary|deleted|deletion/i }
 ];
 
-const CONTROL_SIGNALS = [
-  { id: "trainingOptOut", label: "Training controls", pattern: /train(?:ing)? (?:toggle|controls?|settings)|opt out of training|use your data to improve|model improvement/i },
-  { id: "temporaryChats", label: "Temporary chats", pattern: /temporary chats?|ephemeral chats?|incognito chats?/i },
-  { id: "activityControls", label: "Activity controls", pattern: /web & app activity|activity controls?|history controls|manage activity/i },
-  { id: "deleteAccount", label: "Delete account path", pattern: /delete (?:your )?account|close (?:your )?account|remove (?:your )?account/i },
-  { id: "downloadData", label: "Download or export data", pattern: /download (?:your )?data|export (?:your )?data|data portability|request a copy/i },
-  { id: "feedbackBypass", label: "Feedback processing", pattern: /feedback.*(?:train|improv)|improve.*(?:with|using) feedback|even if you opt out/i },
-  { id: "crossPlatformSharing", label: "Cross-platform sharing", pattern: /cross-platform|across (?:our )?(?:products|services)|share.*across/i },
-  { id: "retentionWindow", label: "Retention timeline", pattern: /retain.*for|kept for|stored for|delete after|retention period/i }
+const RETENTION_PATTERNS = [
+  /retain[^.]{0,180}\./gi,
+  /as long as necessary[^.]{0,180}\./gi,
+  /deleted?[^.]{0,180}\./gi,
+  /(\d+\s+(days?|months?|years?))[^.]{0,160}\./gi
 ];
+
+const SELLING_PATTERNS = /sell personal information|share personal information|targeted advertising|cross-context behavioral advertising|advertising partners/i;
+const AI_PATTERNS = /artificial intelligence|machine learning|automated decision|profiling|train our models|model training/i;
+const POLICY_FETCH_TIMEOUT_MS = 8000;
+const MAX_POLICY_BYTES = 2 * 1024 * 1024;
+const MAX_POLICY_REDIRECTS = 3;
+const BLOCKED_HOSTS = new Set(["localhost", "localhost.localdomain"]);
+
+function ipv4ToNumber(address) {
+  return address.split(".").reduce((sum, value) => (sum << 8) + Number(value), 0) >>> 0;
+}
+
+function ipv4InRange(address, start, end) {
+  const value = ipv4ToNumber(address);
+  return value >= ipv4ToNumber(start) && value <= ipv4ToNumber(end);
+}
+
+function isBlockedIp(address) {
+  const kind = net.isIP(address);
+  if (kind === 4) {
+    return address === "0.0.0.0"
+      || ipv4InRange(address, "10.0.0.0", "10.255.255.255")
+      || ipv4InRange(address, "127.0.0.0", "127.255.255.255")
+      || ipv4InRange(address, "169.254.0.0", "169.254.255.255")
+      || ipv4InRange(address, "172.16.0.0", "172.31.255.255")
+      || ipv4InRange(address, "192.168.0.0", "192.168.255.255");
+  }
+
+  if (kind === 6) {
+    const normalized = address.toLowerCase();
+    return normalized === "::1"
+      || normalized === "::"
+      || normalized.startsWith("fc")
+      || normalized.startsWith("fd")
+      || normalized.startsWith("fe80:");
+  }
+
+  return false;
+}
+
+async function assertSafePolicyUrl(url) {
+  if (!["http:", "https:"].includes(url.protocol)) {
+    throw new Error("Only http and https policy URLs are supported");
+  }
+
+  const hostname = url.hostname.toLowerCase();
+  if (BLOCKED_HOSTS.has(hostname) || hostname.endsWith(".localhost")) {
+    throw new Error("Policy URL host is not allowed");
+  }
+
+  if (net.isIP(hostname) && isBlockedIp(hostname)) {
+    throw new Error("Policy URL resolves to a private or local address");
+  }
+
+  const addresses = await dns.lookup(hostname, { all: true, verbatim: true });
+  if (!addresses.length || addresses.some((entry) => isBlockedIp(entry.address))) {
+    throw new Error("Policy URL resolves to a private or local address");
+  }
+}
+
+async function fetchPolicyHtml(url, redirectsRemaining = MAX_POLICY_REDIRECTS) {
+  await assertSafePolicyUrl(url);
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), POLICY_FETCH_TIMEOUT_MS);
+
+  try {
+    const response = await fetch(url.href, {
+      redirect: "manual",
+      signal: controller.signal,
+      headers: {
+        "Accept": "text/html,text/plain,application/xhtml+xml",
+        "User-Agent": "ConsentLens/0.1 policy analyzer"
+      }
+    });
+
+    if ([301, 302, 303, 307, 308].includes(response.status)) {
+      if (redirectsRemaining <= 0) throw new Error("Policy fetch exceeded redirect limit");
+      const location = response.headers.get("location");
+      if (!location) throw new Error("Policy redirect did not include a location");
+      return fetchPolicyHtml(new URL(location, url), redirectsRemaining - 1);
+    }
+
+    if (!response.ok) {
+      throw new Error("Policy fetch failed with " + response.status);
+    }
+
+    const contentType = response.headers.get("content-type") || "";
+    if (contentType && !/text|html|xml|json/i.test(contentType)) {
+      throw new Error("Policy URL did not return readable text");
+    }
+
+    const contentLength = Number(response.headers.get("content-length") || 0);
+    if (contentLength > MAX_POLICY_BYTES) {
+      throw new Error("Policy response is too large to analyze safely");
+    }
+
+    const buffer = await response.arrayBuffer();
+    if (buffer.byteLength > MAX_POLICY_BYTES) {
+      throw new Error("Policy response is too large to analyze safely");
+    }
+
+    return new TextDecoder("utf-8", { fatal: false }).decode(buffer);
+  } catch (error) {
+    if (error.name === "AbortError") {
+      throw new Error("Policy fetch timed out");
+    }
+    throw error;
+  } finally {
+    clearTimeout(timeout);
+  }
+}
 
 function stripHtml(html) {
   return html
@@ -50,14 +159,6 @@ function extractSignals(text) {
   }).filter(Boolean);
 }
 
-function extractControls(text) {
-  const lines = sentences(text);
-  return CONTROL_SIGNALS.map((signal) => {
-    const evidence = lines.find((line) => signal.pattern.test(line));
-    return evidence ? { ...signal, evidence } : null;
-  }).filter(Boolean);
-}
-
 function riskLevel(signals) {
   let score = 0;
   signals.forEach((signal) => {
@@ -72,9 +173,8 @@ function riskLevel(signals) {
   };
 }
 
-function plainEnglish(signals, controls) {
+function plainEnglish(signals) {
   const ids = new Set(signals.map((signal) => signal.id));
-  const controlIds = new Set(controls.map((control) => control.id));
   const summary = [];
   if (ids.has("identity") || ids.has("device")) summary.push("The policy appears to cover identity, account, device, cookie, or browser identifiers.");
   if (ids.has("behavior")) summary.push("The company may collect usage or interaction data to understand how people use the service.");
@@ -82,60 +182,53 @@ function plainEnglish(signals, controls) {
   if (ids.has("ads")) summary.push("There are signs of advertising, sale, sharing, or behavioral targeting language.");
   if (ids.has("retention")) summary.push("The policy includes retention or deletion language, which should be reviewed for how long data is kept.");
   if (ids.has("ai")) summary.push("The policy mentions AI, profiling, automated decisions, or model training.");
-  if (controlIds.has("trainingOptOut")) summary.push("The policy mentions a training control or opt-out, which is important to verify before sharing sensitive content.");
-  if (controlIds.has("temporaryChats")) summary.push("The policy mentions temporary chats or ephemeral conversations.");
-  if (controlIds.has("activityControls")) summary.push("The policy mentions account or activity controls that may change how your data is used.");
-  if (controlIds.has("deleteAccount")) summary.push("There appears to be a delete-account path, which is useful for removing stored data later.");
-  if (controlIds.has("downloadData")) summary.push("The policy mentions a data export or download path.");
-  if (controlIds.has("feedbackBypass")) summary.push("Feedback may be used for improvement even when some privacy settings are enabled.");
   if (!summary.length) summary.push("No major data-use signals were found in the fetched policy text.");
   return summary;
 }
 
-function isPrivateHost(hostname) {
-  const host = String(hostname || "").toLowerCase();
-  if (!host) return true;
-  if (host === "localhost" || host.endsWith(".localhost") || host.endsWith(".local")) return true;
-  if (host === "::1" || host === "0.0.0.0") return true;
-  if (/^\d+\.\d+\.\d+\.\d+$/.test(host)) {
-    const [a, b] = host.split(".").map(Number);
-    if (a === 10) return true;
-    if (a === 127) return true;
-    if (a === 192 && b === 168) return true;
-    if (a === 172 && b >= 16 && b <= 31) return true;
-    if (a === 169 && b === 254) return true;
-  }
-  return false;
+function extractRetention(text) {
+  const matches = [];
+  RETENTION_PATTERNS.forEach((pattern) => {
+    for (const match of text.matchAll(pattern)) {
+      const value = String(match[0] || "").replace(/\s+/g, " ").trim();
+      if (value && !matches.includes(value)) matches.push(value);
+    }
+  });
+  return matches.slice(0, 4);
 }
 
-async function fetchPolicyDocument(initialUrl) {
-  let currentUrl = new URL(initialUrl);
+function buildRiskPoints(signals, text) {
+  const points = signals.map((signal) => ({
+    title: signal.label,
+    severity: ["sensitive", "ads", "ai"].includes(signal.id) ? "High" : ["sharing", "location", "retention"].includes(signal.id) ? "Medium" : "Low",
+    evidence: signal.evidence
+  }));
 
-  for (let redirects = 0; redirects < 5; redirects += 1) {
-    if (isPrivateHost(currentUrl.hostname)) {
-      throw new Error("Policy URLs on local or private network hosts are not allowed");
-    }
-
-    const response = await fetch(currentUrl.href, {
-      headers: {
-        "User-Agent": "ConsentLens/0.1 policy analyzer"
-      },
-      redirect: "manual"
+  if (!signals.some((signal) => signal.id === "retention")) {
+    points.push({
+      title: "Retention clarity",
+      severity: "Medium",
+      evidence: "No clear retention period was detected in the policy text."
     });
-
-    if (response.status >= 300 && response.status < 400) {
-      const location = response.headers.get("location");
-      if (!location) {
-        throw new Error(`Policy fetch redirected without a location header (${response.status})`);
-      }
-      currentUrl = new URL(location, currentUrl);
-      continue;
-    }
-
-    return { response, finalUrl: currentUrl.href };
   }
 
-  throw new Error("Policy fetch redirected too many times");
+  if (!AI_PATTERNS.test(text)) {
+    points.push({
+      title: "AI training clarity",
+      severity: "Low",
+      evidence: "No explicit AI training or automated decision language was detected."
+    });
+  }
+
+  if (!SELLING_PATTERNS.test(text)) {
+    points.push({
+      title: "Sale or ad sharing",
+      severity: "Low",
+      evidence: "No direct sale or targeted advertising language was detected in the scanned text."
+    });
+  }
+
+  return points.slice(0, 8);
 }
 
 function privacyLabel(signals, region) {
@@ -154,63 +247,32 @@ function privacyLabel(signals, region) {
   };
 }
 
-function controlLabels(controls) {
-  return controls.map((control) => control.label);
-}
-
-function retentionSummary(controls, signals) {
-  const retentionControl = controls.find((control) => control.id === "retentionWindow");
-  if (retentionControl?.evidence) return retentionControl.evidence;
-  const retentionSignal = signals.find((signal) => signal.id === "retention");
-  return retentionSignal?.evidence || "No retention language detected";
-}
-
 export async function analyzePolicyFromUrl({ policyUrl, pageUrl, region }) {
   if (!policyUrl) {
     throw new Error("policyUrl is required");
   }
 
   const parsed = new URL(policyUrl);
-  if (!["http:", "https:"].includes(parsed.protocol)) {
-    throw new Error("Only http and https policy URLs are supported");
-  }
-  if (isPrivateHost(parsed.hostname)) {
-    throw new Error("Policy URLs on local or private network hosts are not allowed");
-  }
-
-  const { response, finalUrl } = await fetchPolicyDocument(parsed.href);
-
-  if (!response.ok) {
-    throw new Error(`Policy fetch failed with ${response.status}`);
-  }
-
-  const html = await response.text();
+  const html = await fetchPolicyHtml(parsed);
   const text = stripHtml(html).slice(0, 180000);
   const signals = extractSignals(text);
-  const controls = extractControls(text);
   const risk = riskLevel(signals);
 
   return {
     policyUrl: parsed.href,
-    resolvedUrl: finalUrl,
     pageUrl: pageUrl || "",
     fetchedAt: Date.now(),
     risk,
-    privacyLabel: {
-      ...privacyLabel(signals, region),
-      controls: controlLabels(controls),
-      retention: retentionSummary(controls, signals)
-    },
-    summary: plainEnglish(signals, controls),
+    privacyLabel: privacyLabel(signals, region),
+    summary: plainEnglish(signals),
+    riskPoints: buildRiskPoints(signals, text),
+    retention: extractRetention(text),
+    aiTraining: AI_PATTERNS.test(text) ? "Mentioned" : "No explicit mention detected",
+    saleOrSharing: SELLING_PATTERNS.test(text) ? "Advertising, sale, or sharing language detected" : "No direct sale/share signal detected",
     signals: signals.map((signal) => ({
       id: signal.id,
       label: signal.label,
       evidence: signal.evidence
-    })),
-    controls: controls.map((control) => ({
-      id: control.id,
-      label: control.label,
-      evidence: control.evidence
     })),
     legal: legalRightsForRegion(region || "IN")
   };

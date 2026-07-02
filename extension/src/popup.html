@@ -33,13 +33,19 @@
       </section>
 
       <section>
-        <h2>Privacy Nutrition Label</h2>
-        <div id="privacyLabel" class="stack"></div>
+        <div class="sectionHead">
+          <div>
+            <h2>Privacy Nutrition Label</h2>
+            <p class="note">Readable answers first: data, sharing, retention, AI, and rights.</p>
+          </div>
+          <button id="analyzeNutrition" type="button">Analyze</button>
+        </div>
+        <div id="privacyLabel" class="labelGrid"></div>
       </section>
 
       <section>
         <h2>Site Intelligence</h2>
-        <div id="siteIntel" class="stack"></div>
+        <div id="siteIntelligence" class="labelGrid"></div>
       </section>
 
       <section class="grid">
@@ -81,15 +87,6 @@
       </section>
 
       <section>
-        <div class="sectionHead">
-          <h2>App Lookup</h2>
-          <button id="lookupApp" type="button">Lookup</button>
-        </div>
-        <input id="appQuery" class="search" type="text" placeholder="Amazon, Instagram, TikTok, OpenAI">
-        <div id="appIntel" class="stack"></div>
-      </section>
-
-      <section>
         <h2>Data Flow</h2>
         <div id="trackerGraph" class="graph"></div>
       </section>
@@ -99,33 +96,34 @@
         <ul id="privacyTimeline" class="domains"></ul>
       </section>
 
-      <section>
+      <details>
+        <summary>Data Rights Request</summary>
+        <p class="note">A DSAR is a data rights request. Use it when you want a company to access, delete, export, or explain your data.</p>
         <div class="sectionHead">
-          <h2>DSAR Draft</h2>
+          <h2>Draft</h2>
           <button id="copyDsar" type="button">Copy</button>
         </div>
         <textarea id="dsarDraft" class="draft" readonly></textarea>
-      </section>
+      </details>
 
       <section>
         <h2>Fingerprinting</h2>
         <div id="fingerprinting" class="stack"></div>
       </section>
 
-      <section>
-        <div class="sectionHead">
-          <h2>Evidence Q&A</h2>
-          <button id="askEvidence" type="button">Ask</button>
-        </div>
+      <details>
+        <summary>Evidence Q&A</summary>
+        <div id="faqBar" class="faqBar"></div>
         <textarea id="evidenceQuestion" class="draft" rows="2" placeholder="Why is this risky?"></textarea>
+        <button id="askEvidence" type="button">Ask</button>
         <div id="evidenceAnswer" class="stack"></div>
-      </section>
+      </details>
 
       <section>
         <h2>Consent Receipts</h2>
         <ul id="receipts"></ul>
       </section>
     </main>
-    <script type="module" src="popup.js"></script>
+    <script src="popup.js"></script>
   </body>
 </html>

@@ -18,13 +18,37 @@
   }
 
   function findPolicyLinks() {
+    const keywords = /privacy|cookie policy|cookies policy|terms of use|terms and conditions|terms & conditions|candidate privacy|legal|do not sell|data protection|personal data protection|privacy statement|user agreement/i;
+    const badLabels = /skip to|jump to|search|footer|content|close|menu/i;
+
     return Array.from(document.querySelectorAll("a[href]"))
       .map((link) => ({
         text: (link.innerText || link.getAttribute("aria-label") || "").trim(),
         href: link.href
       }))
-      .filter((link) => /privacy|cookie policy|cookies policy|terms of use|terms and conditions|legal|do not sell|data protection|personal data protection|privacy statement/i.test(link.text + " " + link.href))
-      .slice(0, 20);
+      .filter((link) => {
+        const combined = link.text + " " + link.href;
+        if (!keywords.test(combined)) return false;
+        if (badLabels.test(link.text) && !keywords.test(link.text)) return false;
+        try {
+          const url = new URL(link.href);
+          return ["http:", "https:"].includes(url.protocol);
+        } catch (error) {
+          return false;
+        }
+      })
+      .filter((link, index, links) => links.findIndex((item) => item.href === link.href) === index)
+      .sort((a, b) => {
+        const score = (link) => {
+          const value = (link.text + " " + link.href).toLowerCase();
+          if (value.includes("privacy")) return 0;
+          if (value.includes("cookie")) return 1;
+          if (value.includes("terms")) return 2;
+          return 3;
+        };
+        return score(a) - score(b);
+      })
+      .slice(0, 12);
   }
 
   function visibleDomainClues() {

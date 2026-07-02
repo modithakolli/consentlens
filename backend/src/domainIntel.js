@@ -1,7 +1,30 @@
-import { readFileSync } from "node:fs";
-
-const TRACKER_INTEL_URL = new URL("../../extension/shared/tracker-intel.json", import.meta.url);
-const TRACKER_RECORDS = JSON.parse(readFileSync(TRACKER_INTEL_URL, "utf8"));
+const COMPANY_RULES = [
+  { company: "Google", purpose: "Analytics, ads, identity, measurement", hq: "United States", reputation: "High data collection footprint", domains: ["google-analytics.com", "googletagmanager.com", "doubleclick.net", "googleadservices.com", "adservice.google.com", "google.com", "googleapis.com"] },
+  { company: "OpenAI", purpose: "AI products, chat, and API services", hq: "United States", reputation: "AI platform provider", domains: ["openai.com", "chatgpt.com", "oaistatic.com", "openaiassets.com", "images.ctfassets.net"] },
+  { company: "Meta Platforms", purpose: "Advertising and social tracking", hq: "United States", reputation: "High tracking footprint", domains: ["facebook.com", "connect.facebook.net", "instagram.com"] },
+  { company: "Microsoft", purpose: "Identity, ads, productivity services", hq: "United States", reputation: "Broad ecosystem services", domains: ["microsoft.com", "login.microsoftonline.com", "login.live.com", "bing.com", "bat.bing.com", "bat.bing.net", "clarity.ms", "msn.com", "office.com", "azure.com"] },
+  { company: "Adobe", purpose: "Tag management, analytics, marketing", hq: "United States", reputation: "Common marketing tracker stack", domains: ["adobedtm.com", "assets.adobedtm.com", "adoberesources.net", "omtrdc.net", "demdex.net"] },
+  { company: "OneTrust", purpose: "Consent management", hq: "United States", reputation: "Consent infrastructure provider", domains: ["cookielaw.org", "onetrust.com", "geolocation.onetrust.com"] },
+  { company: "LivePerson", purpose: "Customer chat and support", hq: "United States", reputation: "Support tooling with tracking surface", domains: ["liveperson.net", "lpsnmedia.net"] },
+  { company: "Quantcast", purpose: "Audience measurement and ads", hq: "United States", reputation: "Measurement and ad targeting", domains: ["quantserve.com", "quantcount.com"] },
+  { company: "Taboola", purpose: "Ads and content recommendation tracking", hq: "Israel", reputation: "Recommendation and ad network", domains: ["taboola.com"] },
+  { company: "Reddit", purpose: "Advertising pixel and social tracking", hq: "United States", reputation: "Social advertising ecosystem", domains: ["reddit.com", "redditstatic.com", "pixel-config.reddit.com", "alb.reddit.com"] },
+  { company: "Yahoo", purpose: "Ads, analytics, and audience measurement", hq: "United States", reputation: "Advertising and media data footprint", domains: ["yahoo.com", "yimg.com"] },
+  { company: "Marketo", purpose: "Marketing automation and lead tracking", hq: "United States", reputation: "Marketing analytics provider", domains: ["munchkin.marketo.net", "marketo.net", "mktoresp.com"] },
+  { company: "Qualtrics", purpose: "Surveys and experience analytics", hq: "United States", reputation: "Feedback and survey platform", domains: ["qualtrics.com"] },
+  { company: "6sense", purpose: "B2B intent and advertising analytics", hq: "United States", reputation: "Marketing intelligence provider", domains: ["6sc.co"] },
+  { company: "LiveRamp", purpose: "Identity resolution and advertising matching", hq: "United States", reputation: "Advertising identity graph provider", domains: ["rlcdn.com"] },
+  { company: "Krux/Salesforce", purpose: "Data management and ad audience matching", hq: "United States", reputation: "Advertising data platform", domains: ["krxd.net"] },
+  { company: "Akamai", purpose: "Security, bot detection, and delivery", hq: "United States", reputation: "Infrastructure and anti-abuse provider", domains: ["akamaihd.net", "go-mpulse.net", "akstat.io"] },
+  { company: "Amazon Web Services", purpose: "Cloud hosting and storage", hq: "United States", reputation: "Cloud infrastructure provider", domains: ["amazonaws.com", "cloudfront.net"] },
+  { company: "Phenom", purpose: "Recruiting platform and candidate analytics", hq: "United States", reputation: "Hiring experience platform", domains: ["phenompeople.com"] },
+  { company: "Zift Solutions", purpose: "Partner marketing analytics", hq: "United States", reputation: "Channel marketing provider", domains: ["ziftsolutions.com"] },
+  { company: "Contentful", purpose: "Content delivery and asset hosting", hq: "Germany", reputation: "Headless CMS and content infrastructure", domains: ["ctfassets.net", "contentful.com"] },
+  { company: "TikTok", purpose: "Advertising and social tracking", hq: "Global", reputation: "High social/ad tracking footprint", domains: ["tiktok.com"] },
+  { company: "LinkedIn", purpose: "Advertising and identity", hq: "United States", reputation: "Professional identity services", domains: ["linkedin.com", "licdn.com"] },
+  { company: "Fingerprint", purpose: "Device fingerprinting and fraud detection", hq: "United States", reputation: "Device fingerprinting vendor", domains: ["fingerprint.com", "fingerprintjs.com"] },
+  { company: "Cloudflare", purpose: "Security, performance, analytics", hq: "United States", reputation: "Infrastructure and performance provider", domains: ["cloudflare.com", "cloudflareinsights.com"] }
+];
 
 function normalizeHost(hostname) {
   return String(hostname || "").replace(/^www\./, "").toLowerCase();
@@ -12,50 +35,18 @@ function matches(host, domain) {
   return normalized === domain || normalized.endsWith("." + domain);
 }
 
-function recordForHost(hostname) {
-  const normalized = normalizeHost(hostname);
-  const record = TRACKER_RECORDS.find((entry) => entry.domains.some((domain) => matches(normalized, domain)));
-  if (!record) {
-    return {
-      host: normalized,
-      company: "Unknown",
-      category: "unknown",
-      risk: "unknown",
-      purpose: "Unknown third-party service",
-      hq: "Unknown",
-      reputation: "Unknown",
-      known: false
-    };
-  }
-
+export function lookupDomain(hostname) {
+  const rule = COMPANY_RULES.find((entry) => entry.domains.some((domain) => matches(hostname, domain)));
   return {
-    host: normalized,
-    company: record.company,
-    category: record.category,
-    risk: record.risk,
-    purpose: record.purpose,
-    hq: record.hq,
-    reputation: record.reputation,
-    known: true
+    host: normalizeHost(hostname),
+    company: rule?.company || "Unknown",
+    purpose: rule?.purpose || "Unknown third-party service",
+    hq: rule?.hq || "Unknown",
+    reputation: rule?.reputation || "Unknown",
+    known: Boolean(rule)
   };
 }
 
-export function lookupDomain(hostname) {
-  return recordForHost(hostname);
-}
-
 export function getDomainIntel(domains) {
-  return Array.from(new Set(domains.map(normalizeHost).filter(Boolean))).map(recordForHost);
-}
-
-export function getTrackerIntel() {
-  return TRACKER_RECORDS.map((entry) => ({
-    company: entry.company,
-    category: entry.category,
-    risk: entry.risk,
-    purpose: entry.purpose,
-    hq: entry.hq,
-    reputation: entry.reputation,
-    domains: entry.domains.slice()
-  }));
+  return Array.from(new Set(domains.map(normalizeHost).filter(Boolean))).map(lookupDomain);
 }
