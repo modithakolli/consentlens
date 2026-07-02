@@ -2,10 +2,13 @@ importScripts("rules.js");
 
 const DEFAULT_SETTINGS = {
   apiBaseUrl: "http://localhost:8787",
-  region: "IN"
+  region: "IN",
+  syncObservations: false
 };
 
 const tabState = new Map();
+const trackerArchiveCache = new Map();
+let trackerArchiveReady = false;
 
 function blankState(tabId) {
   return {
@@ -25,12 +28,90 @@ function getTabState(tabId) {
   return tabState.get(tabId);
 }
 
+function loadTrackerArchive() {
+  return new Promise((resolve) => {
+    chrome.storage.local.get({ trackerArchive: [] }, (result) => {
+      trackerArchiveCache.clear();
+      (Array.isArray(result.trackerArchive) ? result.trackerArchive : []).forEach((entry) => {
+        if (entry?.host) {
+          trackerArchiveCache.set(entry.host, entry);
+        }
+      });
+      trackerArchiveReady = true;
+      resolve();
+    });
+  });
+}
+
+function ensureTrackerArchiveLoaded() {
+  if (trackerArchiveReady) {
+    return Promise.resolve();
+  }
+  return loadTrackerArchive();
+}
+
+function mergeTrackerObservation(host, existing, next) {
+  const observedSites = Array.from(new Set([
+    ...(existing?.observedSites || []),
+    ...(next?.observedSites || [])
+  ])).slice(0, 12);
+
+  return {
+    host,
+    company: next.company || existing?.company || "Observed tracker",
+    category: next.category || existing?.category || "unknown",
+    risk: next.risk || existing?.risk || "unknown",
+    purpose: next.purpose || existing?.purpose || "Previously observed on this device",
+    hq: next.hq || existing?.hq || "Unknown",
+    reputation: next.reputation || existing?.reputation || "Unknown",
+    known: Boolean(next.known || existing?.known),
+    firstSeen: existing?.firstSeen || next.firstSeen || Date.now(),
+    lastSeen: next.lastSeen || Date.now(),
+    observedSites,
+    requestCount: (existing?.requestCount || 0) + (next.requestCount || 0),
+    requests: (existing?.requests || 0) + (next.requests || 0)
+  };
+}
+
 function safeHost(url) {
   try {
     return ConsentLensRules.normalizeHost(new URL(url).hostname);
   } catch (error) {
     return "";
   }
+}
+
+function observeTrackers(report) {
+  const pageHost = report.pageHost || safeHost(report.pageUrl || "");
+  const observed = new Map();
+
+  (report.thirdParties || []).forEach((party) => {
+    const host = party.host;
+    if (!host) return;
+    const current = trackerArchiveCache.get(host) || null;
+    const next = mergeTrackerObservation(host, current, {
+      company: party.known ? party.company : "Observed tracker",
+      category: party.category || party.categories?.[0] || "unknown",
+      risk: party.risk || "unknown",
+      purpose: party.known ? party.purpose : "Seen on multiple sites",
+      hq: party.hq || "Unknown",
+      reputation: party.reputation || "Unknown",
+      known: Boolean(party.known),
+      firstSeen: current?.firstSeen || Date.now(),
+      lastSeen: Date.now(),
+      observedSites: [...(current?.observedSites || []), pageHost].filter(Boolean),
+      requestCount: party.count || 0,
+      requests: party.count || 0
+    });
+    observed.set(host, next);
+  });
+
+  observed.forEach((entry, host) => trackerArchiveCache.set(host, entry));
+  chrome.storage.local.set({
+    trackerArchive: Array.from(trackerArchiveCache.values())
+      .sort((a, b) => (b.lastSeen || 0) - (a.lastSeen || 0))
+      .slice(0, 300)
+  });
 }
 
 function isThirdParty(requestHost, pageHost) {
@@ -197,20 +278,23 @@ function getThirdParties(state) {
   const merged = new Map();
   Object.values(state.requests).forEach((request) => {
     const intel = ConsentLensRules.lookupTracker?.(request.host) || null;
+    const observed = trackerArchiveCache.get(request.host) || null;
     merged.set(request.host, {
       ...request,
-      company: intel?.company || "Unknown",
-      category: intel?.category || request.categories?.[0] || "unknown",
-      risk: intel?.risk || "unknown",
-      purpose: intel?.purpose || "Unknown third-party service",
-      hq: intel?.hq || "Unknown",
-      reputation: intel?.reputation || "Unknown",
-      known: Boolean(intel?.known)
+      company: intel?.company || observed?.company || "Unknown",
+      category: intel?.category || observed?.category || request.categories?.[0] || "unknown",
+      risk: intel?.risk || observed?.risk || "unknown",
+      purpose: intel?.purpose || observed?.purpose || "Unknown third-party service",
+      hq: intel?.hq || observed?.hq || "Unknown",
+      reputation: intel?.reputation || observed?.reputation || "Unknown",
+      known: Boolean(intel?.known),
+      observed: Boolean(observed && !intel?.known)
     });
   });
 
   (state.contentReport?.visibleThirdPartyHints || []).forEach((hint) => {
     const intel = ConsentLensRules.lookupTracker?.(hint.host) || null;
+    const observed = trackerArchiveCache.get(hint.host) || null;
     if (!merged.has(hint.host)) {
       merged.set(hint.host, {
         host: hint.host,
@@ -218,13 +302,14 @@ function getThirdParties(state) {
         types: {},
         categories: hint.categories || [],
         source: "page",
-        company: intel?.company || "Unknown",
-        category: intel?.category || hint.categories?.[0] || "unknown",
-        risk: intel?.risk || "unknown",
-        purpose: intel?.purpose || "Unknown third-party service",
-        hq: intel?.hq || "Unknown",
-        reputation: intel?.reputation || "Unknown",
-        known: Boolean(intel?.known)
+        company: intel?.company || observed?.company || "Unknown",
+        category: intel?.category || observed?.category || hint.categories?.[0] || "unknown",
+        risk: intel?.risk || observed?.risk || "unknown",
+        purpose: intel?.purpose || observed?.purpose || "Unknown third-party service",
+        hq: intel?.hq || observed?.hq || "Unknown",
+        reputation: intel?.reputation || observed?.reputation || "Unknown",
+        known: Boolean(intel?.known),
+        observed: Boolean(observed && !intel?.known)
       });
       return;
     }
@@ -239,6 +324,15 @@ function getThirdParties(state) {
       existing.hq = intel.hq;
       existing.reputation = intel.reputation;
       existing.known = true;
+      existing.observed = false;
+    } else if (observed) {
+      existing.company = observed.company;
+      existing.category = observed.category;
+      existing.risk = observed.risk;
+      existing.purpose = observed.purpose;
+      existing.hq = observed.hq;
+      existing.reputation = observed.reputation;
+      existing.observed = true;
     }
   });
 
@@ -314,7 +408,8 @@ function getSettings() {
     chrome.storage.local.get(DEFAULT_SETTINGS, (result) => {
       resolve({
         apiBaseUrl: String(result.apiBaseUrl || DEFAULT_SETTINGS.apiBaseUrl).replace(/\/+$/, ""),
-        region: String(result.region || DEFAULT_SETTINGS.region).toUpperCase()
+        region: String(result.region || DEFAULT_SETTINGS.region).toUpperCase(),
+        syncObservations: Boolean(result.syncObservations ?? DEFAULT_SETTINGS.syncObservations)
       });
     });
   });
@@ -323,6 +418,39 @@ function getSettings() {
 function setSettings(next) {
   return new Promise((resolve) => {
     chrome.storage.local.set(next, resolve);
+  });
+}
+
+function syncTrackerObservations(report, settings) {
+  if (!settings?.apiBaseUrl) {
+    return Promise.resolve();
+  }
+
+  const pageHost = report.pageHost || safeHost(report.pageUrl || "");
+  const payload = {
+    pageHost,
+    observations: (report.thirdParties || []).map((party) => ({
+      host: party.host,
+      company: party.company || "Observed tracker",
+      category: party.category || party.categories?.[0] || "unknown",
+      risk: party.risk || "unknown",
+      purpose: party.purpose || "Seen on multiple sites",
+      hq: party.hq || "Unknown",
+      reputation: party.reputation || "Unknown",
+      known: Boolean(party.known),
+      observedSites: [pageHost].filter(Boolean),
+      requests: party.count || 0
+    }))
+  };
+
+  return fetch(`${settings.apiBaseUrl}/tracker-observations`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload)
+  }).then((response) => {
+    if (!response.ok) {
+      throw new Error(`Tracker observation sync failed with ${response.status}`);
+    }
   });
 }
 
@@ -436,10 +564,18 @@ chrome.runtime.onInstalled.addListener(() => {
   chrome.storage.local.get(DEFAULT_SETTINGS, (result) => {
     chrome.storage.local.set({
       apiBaseUrl: result.apiBaseUrl || DEFAULT_SETTINGS.apiBaseUrl,
-      region: result.region || DEFAULT_SETTINGS.region
+      region: result.region || DEFAULT_SETTINGS.region,
+      syncObservations: result.syncObservations ?? DEFAULT_SETTINGS.syncObservations
     });
   });
+  loadTrackerArchive();
 });
+
+chrome.runtime.onStartup.addListener(() => {
+  loadTrackerArchive();
+});
+
+loadTrackerArchive();
 
 chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
   if (changeInfo.status === "loading") {
@@ -464,6 +600,12 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     const report = buildReport(sender.tab.id);
     updateBadge(sender.tab.id, report);
     storeActivityTimeline(report, report.risk);
+    observeTrackers(report);
+    getSettings().then((settings) => {
+      if (settings.syncObservations) {
+        syncTrackerObservations(report, settings).catch(() => {});
+      }
+    });
     sendResponse({ ok: true });
     return true;
   }
@@ -500,13 +642,15 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         consentReceipts: [],
         activityTimeline: [],
         policySnapshots: [],
-        evidenceQa: []
+        evidenceQa: [],
+        trackerArchive: []
       },
       (result) => {
         const receipts = Array.isArray(result.consentReceipts) ? result.consentReceipts : [];
         const timeline = Array.isArray(result.activityTimeline) ? result.activityTimeline : [];
         const policies = Array.isArray(result.policySnapshots) ? result.policySnapshots : [];
         const qaHistory = Array.isArray(result.evidenceQa) ? result.evidenceQa : [];
+        const trackerArchive = Array.isArray(result.trackerArchive) ? result.trackerArchive : [];
 
         sendResponse({
           ok: true,
@@ -515,7 +659,8 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
               receipts: receipts.length,
               timeline: timeline.length,
               policies: policies.length,
-              qa: qaHistory.length
+              qa: qaHistory.length,
+              trackers: trackerArchive.length
             },
             items: [
               ...timeline.slice(0, 3).map((entry) => ({
@@ -541,6 +686,12 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
                 title: entry.pageHost || "Evidence Q&A",
                 detail: `${entry.question || "Question answered"}${entry.answer ? ` · ${String(entry.answer).slice(0, 90)}` : ""}`,
                 when: entry.savedAt
+              })),
+              ...trackerArchive.slice(0, 3).map((entry) => ({
+                type: "tracker",
+                title: entry.host || "Observed tracker",
+                detail: `${entry.company || "Observed tracker"} · seen on ${(entry.observedSites || []).slice(0, 3).join(", ") || "this device"}`,
+                when: entry.lastSeen || entry.firstSeen
               }))
             ]
           }
@@ -558,7 +709,8 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message?.type === "CONSENTLENS_SET_SETTINGS") {
     setSettings({
       apiBaseUrl: String(message.settings?.apiBaseUrl || DEFAULT_SETTINGS.apiBaseUrl).replace(/\/+$/, ""),
-      region: String(message.settings?.region || DEFAULT_SETTINGS.region).toUpperCase()
+      region: String(message.settings?.region || DEFAULT_SETTINGS.region).toUpperCase(),
+      syncObservations: Boolean(message.settings?.syncObservations)
     }).then(() => sendResponse({ ok: true }));
     return true;
   }

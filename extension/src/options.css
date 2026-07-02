@@ -58,6 +58,27 @@ input {
   font: inherit;
 }
 
+.toggle {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fbfcff;
+}
+
+.toggle input {
+  width: 16px;
+  height: 16px;
+  margin: 0;
+  flex: 0 0 auto;
+}
+
+.toggle span {
+  font-weight: 500;
+}
+
 .actions {
   display: flex;
   gap: 10px;

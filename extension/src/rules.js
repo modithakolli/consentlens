@@ -14,11 +14,25 @@
       "heap.io",
       "quantserve.com",
       "quantcount.com",
-      "analytics.ahrefs.com"
+      "analytics.ahrefs.com",
+      "bat.bing.com",
+      "bat.bing.net",
+      "clarity.ms",
+      "scripts.clarity.ms",
+      "e.clarity.ms",
+      "y.clarity.ms",
+      "phenompeople.com",
+      "pp-cdn.phenompeople.com",
+      "cdn.phenompeople.com",
+      "phenomtrackapi-ir.phenompeople.com"
     ],
     ads: [
       "ad.doubleclick.net",
       "doubleclick.net",
+      "googleads.g.doubleclick.net",
+      "stats.g.doubleclick.net",
+      "fls.doubleclick.net",
+      "15392685.fls.doubleclick.net",
       "googlesyndication.com",
       "googleadservices.com",
       "adservice.google.com",
@@ -28,6 +42,8 @@
       "tiktok.com",
       "snap.licdn.com",
       "ads.linkedin.com",
+      "px.ads.linkedin.com",
+      "px4.ads.linkedin.com",
       "taboola.com",
       "reddit.com",
       "redditstatic.com"
@@ -47,7 +63,25 @@
       "login.live.com",
       "appleid.apple.com",
       "okta.com",
-      "auth0.com"
+      "auth0.com",
+      "apis.google.com",
+      "play.google.com",
+      "mail.google.com",
+      "drive.google.com",
+      "meet.google.com",
+      "chat.google.com"
+    ],
+    utility: [
+      "google.com",
+      "google.co.in",
+      "googleapis.com",
+      "ssl.gstatic.com",
+      "gstatic.com",
+      "fonts.gstatic.com",
+      "lh3.google.com",
+      "ogs.google.com",
+      "translate.google.com",
+      "googleusercontent.com"
     ],
     risk: [
       "fingerprint.com",
@@ -58,6 +92,19 @@
       "cloudflareinsights.com"
     ]
   };
+
+  const TRACKER_PROFILES = [
+    { company: "Google", category: "analytics", risk: "medium", purpose: "Measurement and analytics", hq: "United States", reputation: "Common analytics stack", domains: ["google-analytics.com", "googletagmanager.com", "analytics.google.com"] },
+    { company: "Google", category: "ads", risk: "high", purpose: "Advertising and conversion tracking", hq: "United States", reputation: "Large ad ecosystem", domains: ["doubleclick.net", "ad.doubleclick.net", "googleadservices.com", "adservice.google.com", "googlesyndication.com", "googleads.g.doubleclick.net", "stats.g.doubleclick.net", "fls.doubleclick.net", "15392685.fls.doubleclick.net"] },
+    { company: "Google", category: "identity", risk: "medium", purpose: "Authentication and account identity", hq: "United States", reputation: "Identity provider surface", domains: ["accounts.google.com", "google.com", "google.co.in", "googleapis.com", "apis.google.com", "play.google.com", "mail.google.com", "drive.google.com", "meet.google.com", "chat.google.com"] },
+    { company: "Google", category: "utility", risk: "low", purpose: "Shared web infrastructure and assets", hq: "United States", reputation: "Common shared asset and utility surface", domains: ["gstatic.com", "fonts.gstatic.com", "ssl.gstatic.com", "lh3.google.com", "ogs.google.com", "translate.google.com", "googleusercontent.com"] },
+    { company: "Microsoft", category: "analytics", risk: "medium", purpose: "Usage measurement and insights", hq: "United States", reputation: "Product telemetry and analytics", domains: ["clarity.ms", "scripts.clarity.ms", "e.clarity.ms", "y.clarity.ms", "bat.bing.com", "bat.bing.net"] },
+    { company: "LinkedIn", category: "ads", risk: "high", purpose: "Advertising and identity", hq: "United States", reputation: "Professional identity services", domains: ["linkedin.com", "licdn.com", "snap.licdn.com", "px.ads.linkedin.com", "px4.ads.linkedin.com"] },
+    { company: "Phenom", category: "analytics", risk: "medium", purpose: "Recruiting platform and candidate analytics", hq: "United States", reputation: "Hiring experience platform", domains: ["phenompeople.com", "phenomtrackapi-ir.phenompeople.com", "pp-cdn.phenompeople.com", "cdn.phenompeople.com", "cdn-bot.phenompeople.com"] },
+    { company: "OneTrust", category: "consent", risk: "low", purpose: "Consent management", hq: "United States", reputation: "Consent infrastructure provider", domains: ["cookielaw.org", "onetrust.com", "geolocation.onetrust.com"] },
+    { company: "Cloudflare", category: "risk", risk: "low", purpose: "Security, performance, and anti-bot controls", hq: "United States", reputation: "Infrastructure and performance provider", domains: ["cloudflare.com", "cloudflareinsights.com", "static.cloudflareinsights.com"] },
+    { company: "Amazon Web Services", category: "utility", risk: "low", purpose: "Cloud hosting and storage", hq: "United States", reputation: "Cloud infrastructure provider", domains: ["amazonaws.com", "cloudfront.net"] }
+  ];
 
   const DATA_PATTERNS = [
     { id: "identity", label: "Identity details", terms: ["name", "email address", "phone number", "account information", "profile information", "information you provide"] },
@@ -128,14 +175,31 @@
     return categories;
   }
 
+  function lookupTracker(hostname) {
+    const host = normalizeHost(hostname);
+    const profile = TRACKER_PROFILES.find((entry) => entry.domains.some((domain) => domainMatches(host, domain)));
+    return {
+      host,
+      company: profile?.company || "Unknown",
+      category: profile?.category || (categorizeDomain(host)[0] || "unknown"),
+      risk: profile?.risk || "unknown",
+      purpose: profile?.purpose || "Unknown third-party service",
+      hq: profile?.hq || "Unknown",
+      reputation: profile?.reputation || "Unknown",
+      known: Boolean(profile)
+    };
+  }
+
   globalScope.ConsentLensRules = {
     TRACKER_DOMAINS,
+    TRACKER_PROFILES,
     DATA_PATTERNS,
     SHARING_PATTERNS,
     OAUTH_SCOPE_RISK,
     DARK_PATTERN_TERMS,
     normalizeHost,
     domainMatches,
-    categorizeDomain
+    categorizeDomain,
+    lookupTracker
   };
 })(typeof self !== "undefined" ? self : window);

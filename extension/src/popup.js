@@ -136,6 +136,11 @@ function renderThirdParties(thirdParties) {
       note.className = "note";
       note.textContent = `${intel.company}: ${intel.purpose}${intel.reputation ? ` (${intel.reputation})` : ""}`;
       li.appendChild(note);
+    } else if (intel.observed) {
+      const note = document.createElement("p");
+      note.className = "note";
+      note.textContent = `Previously observed on this device: ${intel.purpose}`;
+      li.appendChild(note);
     } else if (intel.purpose || intel.category) {
       const note = document.createElement("p");
       note.className = "note";
@@ -192,7 +197,8 @@ function resolvePartyIntel(party) {
     purpose: party.purpose || fallback.purpose || "Unknown third-party service",
     hq: party.hq || fallback.hq || "Unknown",
     reputation: party.reputation || fallback.reputation || "Unknown",
-    known: Boolean(party.known || fallback.known)
+    known: Boolean(party.known || fallback.known),
+    observed: Boolean(party.observed || fallback.observed)
   };
 }
 
@@ -264,7 +270,7 @@ function renderGraph(report, analysis) {
           ? "#f2edf9"
           : "#f8fafc";
     svgLine(svg, centerX + Math.cos(angle) * 34, centerY + Math.sin(angle) * 34, x - Math.cos(angle) * 34, y - Math.sin(angle) * 34);
-    const sublabel = intel.known ? intel.company : `${category} / ${intel.risk}`;
+    const sublabel = intel.known ? intel.company : intel.observed ? `Observed / ${category}` : `${category} / ${intel.risk}`;
     svgNode(svg, x, y, party.host, sublabel, color);
   });
 
@@ -572,6 +578,11 @@ async function askEvidence(question) {
     return;
   }
 
+  const panel = el("evidencePanel");
+  if (panel) {
+    panel.open = true;
+  }
+
   renderEvidenceQA(currentReport, currentAnalysis, query);
   const answer = answerEvidenceQuestion(currentReport, currentAnalysis, query);
   try {
@@ -629,7 +640,8 @@ function renderMemory(memory) {
       labelItem("Site scans", "0", "saved on this device"),
       labelItem("Policy snapshots", "0", "saved on this device"),
       labelItem("Consent receipts", "0", "saved on this device"),
-      labelItem("Q&A answers", "0", "saved on this device")
+      labelItem("Q&A answers", "0", "saved on this device"),
+      labelItem("Tracker archive", "0", "observed domains")
     );
     const li = document.createElement("li");
     li.className = "note";
@@ -643,7 +655,8 @@ function renderMemory(memory) {
     labelItem("Site scans", String(counts.timeline || 0), "recent site activity"),
     labelItem("Policy snapshots", String(counts.policies || 0), "stored policy notes"),
     labelItem("Consent receipts", String(counts.receipts || 0), "accepted or reviewed flows"),
-    labelItem("Q&A answers", String(counts.qa || 0), "answers saved locally")
+    labelItem("Q&A answers", String(counts.qa || 0), "answers saved locally"),
+    labelItem("Tracker archive", String(counts.trackers || 0), "observed domains remembered")
   );
 
   if (!memory.items?.length) {

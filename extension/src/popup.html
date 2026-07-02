@@ -38,7 +38,7 @@
             <h2>Privacy Nutrition Label</h2>
             <p class="note">Readable answers first: data, sharing, retention, AI, and rights.</p>
           </div>
-          <button id="analyzeNutrition" type="button">Build label</button>
+          <button id="analyzeNutrition" type="button">Summarize</button>
         </div>
         <div id="privacyLabel" class="labelGrid"></div>
       </section>
@@ -79,8 +79,8 @@
         <div class="sectionHead">
           <h2>Policy Intelligence</h2>
           <div class="sectionActions">
-            <button id="openSettings" type="button">Backend</button>
-            <button id="analyzePolicy" type="button">Analyze policy</button>
+            <button id="openSettings" type="button">Backend status</button>
+            <button id="analyzePolicy" type="button">Summarize policy</button>
           </div>
         </div>
         <p class="note">When the backend is connected, this fetches and summarizes the linked policy. If not, ConsentLens falls back to a local summary from the current page.</p>
@@ -119,7 +119,7 @@
         <div id="fingerprinting" class="stack"></div>
       </section>
 
-      <details>
+      <details id="evidencePanel">
         <summary>Evidence Q&A</summary>
         <div id="faqBar" class="faqBar"></div>
         <textarea id="evidenceQuestion" class="draft" rows="2" placeholder="Why is this risky?"></textarea>
