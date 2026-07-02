@@ -1,5 +1,29 @@
+import { readFileSync } from "node:fs";
+import { dirname, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
+
+const MODULE_DIR = dirname(fileURLToPath(import.meta.url));
+const SHARED_TRACKER_INTEL_PATH = resolve(MODULE_DIR, "../../extension/shared/tracker-intel.json");
+
+function loadSharedTrackerRules() {
+  try {
+    const raw = JSON.parse(readFileSync(SHARED_TRACKER_INTEL_PATH, "utf8"));
+    return raw.flatMap((entry) => (entry.domains || []).map((domain) => ({
+      company: entry.company,
+      purpose: entry.purpose,
+      hq: entry.hq,
+      reputation: entry.reputation,
+      domains: [domain]
+    })));
+  } catch (error) {
+    return [];
+  }
+}
+
+const SHARED_RULES = loadSharedTrackerRules();
+
 const COMPANY_RULES = [
-  { company: "Google", purpose: "Analytics, ads, identity, measurement", hq: "United States", reputation: "High data collection footprint", domains: ["google-analytics.com", "googletagmanager.com", "doubleclick.net", "googleadservices.com", "adservice.google.com", "google.com", "googleapis.com"] },
+  { company: "Google", purpose: "Analytics, ads, identity, measurement", hq: "United States", reputation: "High data collection footprint", domains: ["google.com", "googleapis.com", "clients6.google.com", "gstatic.com", "fonts.googleapis.com", "fonts.gstatic.com", "translate.google.com", "google.co.in"] },
   { company: "OpenAI", purpose: "AI products, chat, and API services", hq: "United States", reputation: "AI platform provider", domains: ["openai.com", "chatgpt.com", "oaistatic.com", "openaiassets.com", "images.ctfassets.net"] },
   { company: "Meta Platforms", purpose: "Advertising and social tracking", hq: "United States", reputation: "High tracking footprint", domains: ["facebook.com", "connect.facebook.net", "instagram.com"] },
   { company: "Microsoft", purpose: "Identity, ads, productivity services", hq: "United States", reputation: "Broad ecosystem services", domains: ["microsoft.com", "login.microsoftonline.com", "login.live.com", "bing.com", "bat.bing.com", "bat.bing.net", "clarity.ms", "msn.com", "office.com", "azure.com"] },
@@ -26,6 +50,8 @@ const COMPANY_RULES = [
   { company: "Cloudflare", purpose: "Security, performance, analytics", hq: "United States", reputation: "Infrastructure and performance provider", domains: ["cloudflare.com", "cloudflareinsights.com"] }
 ];
 
+const LOOKUP_RULES = [...SHARED_RULES, ...COMPANY_RULES];
+
 function normalizeHost(hostname) {
   return String(hostname || "").replace(/^www\./, "").toLowerCase();
 }
@@ -36,7 +62,7 @@ function matches(host, domain) {
 }
 
 export function lookupDomain(hostname) {
-  const rule = COMPANY_RULES.find((entry) => entry.domains.some((domain) => matches(hostname, domain)));
+  const rule = LOOKUP_RULES.find((entry) => entry.domains.some((domain) => matches(hostname, domain)));
   return {
     host: normalizeHost(hostname),
     company: rule?.company || "Unknown",

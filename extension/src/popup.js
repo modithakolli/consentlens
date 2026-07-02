@@ -39,7 +39,10 @@ function renderOAuth(oauth) {
   node.innerHTML = "";
 
   if (!oauth?.hasOAuthProvider && !oauth?.buttons?.length && !oauth?.scopes?.length) {
-    node.innerHTML = "<p class='note'>No OAuth consent flow was visible on this page.</p>";
+    const note = document.createElement("p");
+    note.className = "note";
+    note.textContent = "No OAuth consent flow was visible on this page.";
+    node.appendChild(note);
     return;
   }
 
@@ -95,7 +98,11 @@ function renderStats(risk) {
   ].forEach(([label, value]) => {
     const card = document.createElement("div");
     card.className = "stat";
-    card.innerHTML = `<strong>${value}</strong><span>${label}</span>`;
+    const strong = document.createElement("strong");
+    strong.textContent = String(value);
+    const span = document.createElement("span");
+    span.textContent = label;
+    card.append(strong, span);
     stats.appendChild(card);
   });
 }
@@ -116,21 +123,30 @@ function renderThirdParties(thirdParties) {
     const li = document.createElement("li");
     const row = document.createElement("div");
     row.className = "domain";
-    row.innerHTML = `<strong>${party.host}</strong><span>${party.count} requests</span>`;
+    const host = document.createElement("strong");
+    host.textContent = party.host;
+    const count = document.createElement("span");
+    count.textContent = `${party.count} requests`;
+    row.append(host, count);
     li.appendChild(row);
 
-    const intel = domainIntelMap().get(party.host);
-    if (intel?.known) {
+    const intel = resolvePartyIntel(party);
+    if (intel.known) {
       const note = document.createElement("p");
       note.className = "note";
-      note.textContent = intel.company + ": " + intel.purpose;
+      note.textContent = `${intel.company}: ${intel.purpose}${intel.reputation ? ` (${intel.reputation})` : ""}`;
+      li.appendChild(note);
+    } else if (intel.purpose || intel.category) {
+      const note = document.createElement("p");
+      note.className = "note";
+      note.textContent = `${intel.category || "unknown"}: ${intel.purpose || "Unknown third-party service"}`;
       li.appendChild(note);
     }
 
     const tags = document.createElement("div");
-    if (party.categories.length) {
-      party.categories.forEach((category) => tags.appendChild(tag(category)));
-    } else {
+    const categories = party.categories?.length ? party.categories : [intel.category || "unknown"];
+    categories.forEach((category) => tags.appendChild(tag(category)));
+    if (!categories.length) {
       tags.appendChild(tag("unknown"));
     }
     li.appendChild(tags);
@@ -164,6 +180,20 @@ function renderLinks(links) {
 
 function domainIntelMap() {
   return new Map(currentDomainIntel.map((item) => [item.host, item]));
+}
+
+function resolvePartyIntel(party) {
+  const fallback = domainIntelMap().get(party.host) || {};
+  return {
+    host: party.host,
+    company: party.company || fallback.company || "Unknown",
+    category: party.category || party.categories?.[0] || fallback.category || "unknown",
+    risk: party.risk || fallback.risk || "unknown",
+    purpose: party.purpose || fallback.purpose || "Unknown third-party service",
+    hq: party.hq || fallback.hq || "Unknown",
+    reputation: party.reputation || fallback.reputation || "Unknown",
+    known: Boolean(party.known || fallback.known)
+  };
 }
 
 function svgText(svg, x, y, text, className = "flowText") {
@@ -221,13 +251,21 @@ function renderGraph(report, analysis) {
   svgLine(svg, 113, centerY, centerX - 31, centerY);
 
   thirdParties.forEach((party, index) => {
+    const intel = resolvePartyIntel(party);
     const angle = (-90 + index * (180 / Math.max(1, thirdParties.length - 1))) * Math.PI / 180;
     const x = centerX + Math.cos(angle) * 205;
     const y = centerY + Math.sin(angle) * 92;
-    const category = party.categories?.[0] || "unknown";
-    const color = category === "ads" ? "#fdecec" : category === "analytics" ? "#edf6ff" : category === "consent" ? "#f2edf9" : "#f8fafc";
+    const category = intel.category || "unknown";
+    const color = intel.risk === "high" || category === "ads"
+      ? "#fdecec"
+      : intel.risk === "medium" || category === "analytics"
+        ? "#edf6ff"
+        : category === "consent"
+          ? "#f2edf9"
+          : "#f8fafc";
     svgLine(svg, centerX + Math.cos(angle) * 34, centerY + Math.sin(angle) * 34, x - Math.cos(angle) * 34, y - Math.sin(angle) * 34);
-    svgNode(svg, x, y, party.host, category, color);
+    const sublabel = intel.known ? intel.company : `${category} / ${intel.risk}`;
+    svgNode(svg, x, y, party.host, sublabel, color);
   });
 
   node.appendChild(svg);
@@ -344,15 +382,22 @@ function renderPrivacyLabel(report, analysis) {
 function renderSiteIntelligence(report) {
   const node = el("siteIntelligence");
   node.innerHTML = "";
-  const known = currentDomainIntel.filter((item) => item.known).length;
-  const companies = Array.from(new Set(currentDomainIntel.filter((item) => item.known).map((item) => item.company))).slice(0, 3);
+  const mergedIntel = (report.thirdParties || []).map(resolvePartyIntel);
+  const known = mergedIntel.filter((item) => item.known).length;
+  const companies = Array.from(new Set(mergedIntel.filter((item) => item.known).map((item) => item.company))).slice(0, 3);
+  const companyCounts = new Map();
+  mergedIntel.filter((item) => item.known).forEach((item) => {
+    companyCounts.set(item.company, (companyCounts.get(item.company) || 0) + 1);
+  });
   const categories = new Map();
   (report.thirdParties || []).forEach((party) => (party.categories?.length ? party.categories : ["unknown"]).forEach((category) => categories.set(category, (categories.get(category) || 0) + 1)));
   const topCategory = Array.from(categories.entries()).sort((a, b) => b[1] - a[1])[0];
+  const topCompany = Array.from(companyCounts.entries()).sort((a, b) => b[1] - a[1])[0];
   node.append(
     labelItem("Current site", report.pageHost || "Unknown", "active tab"),
     labelItem("Known companies", String(known), companies.length ? companies.join(", ") : "more rules needed"),
     labelItem("Dominant purpose", topCategory ? topCategory[0] : "unknown", topCategory ? topCategory[1] + " domains" : "no category yet"),
+    labelItem("Top company", topCompany ? topCompany[0] : "unknown", topCompany ? `${topCompany[1]} domains in the current flow` : "waiting on richer rules"),
     labelItem("Recommended action", report.risk.level === "High" ? "Review before accepting" : "Keep monitoring", report.risk.level + " risk")
   );
 }
@@ -372,7 +417,14 @@ function renderTimeline(timeline) {
   timeline.slice(0, 8).forEach((item) => {
     const li = document.createElement("li");
     const when = new Date(item.savedAt).toLocaleString();
-    li.textContent = `${item.pageHost || "Unknown site"}: ${item.level} (${item.score}/100), ${item.thirdParties} third-party domains, ${item.fingerprinting ? "fingerprinting signaled" : "no fingerprinting signaled"} on ${when}`;
+    const headline = `${item.pageHost || "Unknown site"}: ${item.level} (${item.score}/100), ${item.thirdParties} third-party domains, ${item.fingerprinting ? "fingerprinting signaled" : "no fingerprinting signaled"} on ${when}`;
+    li.textContent = headline;
+    if (Array.isArray(item.topTrackers) && item.topTrackers.length) {
+      const detail = document.createElement("p");
+      detail.className = "note";
+      detail.textContent = `Top trackers: ${item.topTrackers.slice(0, 3).map((tracker) => `${tracker.company} (${tracker.category}, ${tracker.count})`).join("; ")}`;
+      li.appendChild(detail);
+    }
     node.appendChild(li);
   });
 }
@@ -558,10 +610,36 @@ async function scanActiveTab(tabId) {
         "src/content.js"
       ]
     });
-    await wait(150);
+    try {
+      await chrome.tabs.sendMessage(tabId, { type: "CONSENTLENS_SCAN_NOW" });
+    } catch (messageError) {
+      // Ignore pages that do not have the content script ready yet.
+    }
   } catch (error) {
     // Browser-internal pages and some restricted pages cannot be scanned.
   }
+}
+
+async function waitForFreshReport(tabId, previousUpdatedAt, timeoutMs = 2500) {
+  const startedAt = Date.now();
+  let latest = null;
+  while (Date.now() - startedAt < timeoutMs) {
+    try {
+      const response = await chrome.runtime.sendMessage({
+        type: "CONSENTLENS_GET_REPORT",
+        tabId
+      });
+      latest = response?.report || latest;
+      if (latest?.updatedAt && latest.updatedAt > previousUpdatedAt) {
+        return latest;
+      }
+    } catch (error) {
+      // Keep polling until timeout.
+    }
+    await wait(120);
+  }
+
+  return latest;
 }
 
 async function refresh() {
@@ -569,17 +647,15 @@ async function refresh() {
   if (!tab?.id) return;
 
   el("host").textContent = tab.url || "Current tab";
+  const previousUpdatedAt = currentReport?.updatedAt || 0;
   await scanActiveTab(tab.id);
-
-  const response = await chrome.runtime.sendMessage({
-    type: "CONSENTLENS_GET_REPORT",
-    tabId: tab.id
-  });
-
-  const report = response.report;
+  const report = await waitForFreshReport(tab.id, previousUpdatedAt);
+  if (!report) {
+    paragraph("plainEnglish", ["Unable to read this tab yet. Try refreshing once more after the page finishes loading."]);
+    return;
+  }
   currentReport = report;
   currentAnalysis = null;
-  currentDomainIntel = [];
   const levelClass = report.risk.level.toLowerCase();
   const riskCard = el("riskCard");
   riskCard.className = `risk ${levelClass}`;
@@ -595,10 +671,6 @@ async function refresh() {
 
   list("dataCollected", report.plainEnglish.dataCollected, "No clear data collection signal found.");
   list("sharedWith", report.plainEnglish.sharedWith, "No clear sharing signal found.");
-  renderOAuth(report.content?.oauth);
-  renderStats(report.risk);
-  renderThirdParties(report.thirdParties);
-  renderLinks(report.content?.policyLinks);
   try {
     const domainResponse = await chrome.runtime.sendMessage({
       type: "CONSENTLENS_GET_DOMAIN_INTEL",
@@ -609,6 +681,10 @@ async function refresh() {
     currentDomainIntel = [];
   }
 
+  renderOAuth(report.content?.oauth);
+  renderStats(report.risk);
+  renderThirdParties(report.thirdParties);
+  renderLinks(report.content?.policyLinks);
   renderGraph(report, null);
   renderPrivacyLabel(report, null);
   renderSiteIntelligence(report);

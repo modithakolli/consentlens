@@ -196,23 +196,50 @@ function updateBadge(tabId, report) {
 function getThirdParties(state) {
   const merged = new Map();
   Object.values(state.requests).forEach((request) => {
-    merged.set(request.host, { ...request });
+    const intel = ConsentLensRules.lookupTracker?.(request.host) || null;
+    merged.set(request.host, {
+      ...request,
+      company: intel?.company || "Unknown",
+      category: intel?.category || request.categories?.[0] || "unknown",
+      risk: intel?.risk || "unknown",
+      purpose: intel?.purpose || "Unknown third-party service",
+      hq: intel?.hq || "Unknown",
+      reputation: intel?.reputation || "Unknown",
+      known: Boolean(intel?.known)
+    });
   });
 
   (state.contentReport?.visibleThirdPartyHints || []).forEach((hint) => {
+    const intel = ConsentLensRules.lookupTracker?.(hint.host) || null;
     if (!merged.has(hint.host)) {
       merged.set(hint.host, {
         host: hint.host,
         count: 0,
         types: {},
         categories: hint.categories || [],
-        source: "page"
+        source: "page",
+        company: intel?.company || "Unknown",
+        category: intel?.category || hint.categories?.[0] || "unknown",
+        risk: intel?.risk || "unknown",
+        purpose: intel?.purpose || "Unknown third-party service",
+        hq: intel?.hq || "Unknown",
+        reputation: intel?.reputation || "Unknown",
+        known: Boolean(intel?.known)
       });
       return;
     }
 
     const existing = merged.get(hint.host);
     existing.categories = Array.from(new Set([...existing.categories, ...(hint.categories || [])]));
+    if (intel?.known) {
+      existing.company = intel.company;
+      existing.category = intel.category;
+      existing.risk = intel.risk;
+      existing.purpose = intel.purpose;
+      existing.hq = intel.hq;
+      existing.reputation = intel.reputation;
+      existing.known = true;
+    }
   });
 
   return Array.from(merged.values());
@@ -259,6 +286,14 @@ function storeActivityTimeline(report, risk) {
         score: risk.score,
         level: risk.level,
         thirdParties: report.thirdParties?.length || 0,
+        topTrackers: (report.thirdParties || []).slice(0, 10).map((party) => ({
+          host: party.host,
+          company: party.company || "Unknown",
+          category: party.category || party.categories?.[0] || "unknown",
+          risk: party.risk || "unknown",
+          purpose: party.purpose || "Unknown third-party service",
+          count: party.count || 0
+        })),
         fingerprinting: Boolean(report.content?.fingerprinting?.detected),
         savedAt: Date.now()
       };

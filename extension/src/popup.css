@@ -84,6 +84,18 @@ button {
   cursor: pointer;
   font: inherit;
   padding: 7px 10px;
+  transition: transform 140ms ease, box-shadow 140ms ease, border-color 140ms ease, background-color 140ms ease;
+}
+
+button:hover {
+  transform: translateY(-1px);
+  border-color: #c8d0de;
+  box-shadow: 0 4px 16px rgba(22, 32, 51, 0.08);
+}
+
+button:active {
+  transform: translateY(0);
+  box-shadow: none;
 }
 
 section,
@@ -93,6 +105,15 @@ article,
   border: 1px solid var(--line);
   border-radius: 8px;
   padding: 12px;
+  transition: transform 140ms ease, box-shadow 140ms ease, border-color 140ms ease;
+}
+
+section:hover,
+article:hover,
+.risk:hover {
+  border-color: #cad3e2;
+  box-shadow: 0 6px 22px rgba(22, 32, 51, 0.06);
+  transform: translateY(-1px);
 }
 
 .risk {
@@ -126,6 +147,7 @@ article,
   width: 0;
   height: 100%;
   background: var(--low);
+  transition: width 260ms ease;
 }
 
 .risk.medium .meter span {
@@ -225,6 +247,13 @@ li {
   border: 1px solid var(--line);
   border-radius: 6px;
   padding: 8px;
+  background: #fff;
+  transition: transform 140ms ease, box-shadow 140ms ease;
+}
+
+.stat:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 14px rgba(22, 32, 51, 0.06);
 }
 
 .stat strong {
@@ -272,6 +301,12 @@ li {
   border-radius: 8px;
   background: #f6f8fc;
   border: 1px solid #e1e7f0;
+  transition: transform 140ms ease, box-shadow 140ms ease;
+}
+
+.graphNode:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 14px rgba(22, 32, 51, 0.06);
 }
 
 .graphNode strong {
@@ -323,6 +358,12 @@ a:hover {
   padding: 9px;
   min-height: 58px;
   background: #fff;
+  transition: transform 140ms ease, box-shadow 140ms ease;
+}
+
+.labelItem:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 14px rgba(22, 32, 51, 0.06);
 }
 
 .labelItem strong {

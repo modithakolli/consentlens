@@ -41,6 +41,14 @@
     }
   }
 
+  chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+    if (message?.type === "CONSENTLENS_SCAN_NOW") {
+      sendReport();
+      sendResponse({ ok: true });
+      return false;
+    }
+  });
+
   window.__consentLensBuildReport = buildReport;
   window.__consentLensScanNow = sendReport;
 

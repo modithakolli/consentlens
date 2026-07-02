@@ -302,6 +302,21 @@
     ]
   },
   {
+    "company": "Contentsquare",
+    "category": "analytics",
+    "risk": "medium",
+    "purpose": "Behavior analytics and session replay",
+    "hq": "France",
+    "reputation": "Behavior analysis and replay tooling",
+    "domains": [
+      "contentsquare.net",
+      "clicktale.net",
+      "static.hj.contentsquare.net",
+      "cdnssl.clicktale.net",
+      "c.az.clicktale.net"
+    ]
+  },
+  {
     "company": "Heap",
     "category": "analytics",
     "risk": "medium",
