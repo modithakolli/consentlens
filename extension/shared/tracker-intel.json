@@ -1,0 +1,338 @@
+[
+  {
+    "company": "Google",
+    "category": "analytics",
+    "risk": "medium",
+    "purpose": "Measurement and analytics",
+    "hq": "United States",
+    "reputation": "Common analytics stack",
+    "domains": [
+      "google-analytics.com",
+      "googletagmanager.com",
+      "analytics.google.com",
+      "analytics.googleusercontent.com"
+    ]
+  },
+  {
+    "company": "Google",
+    "category": "ads",
+    "risk": "high",
+    "purpose": "Advertising and conversion tracking",
+    "hq": "United States",
+    "reputation": "Large ad ecosystem",
+    "domains": [
+      "doubleclick.net",
+      "ad.doubleclick.net",
+      "googleadservices.com",
+      "adservice.google.com",
+      "googlesyndication.com"
+    ]
+  },
+  {
+    "company": "Google",
+    "category": "identity",
+    "risk": "medium",
+    "purpose": "Authentication and account identity",
+    "hq": "United States",
+    "reputation": "Identity provider surface",
+    "domains": [
+      "accounts.google.com",
+      "google.com"
+    ]
+  },
+  {
+    "company": "Adobe",
+    "category": "analytics",
+    "risk": "medium",
+    "purpose": "Tag management and analytics",
+    "hq": "United States",
+    "reputation": "Common marketing stack",
+    "domains": [
+      "adobedtm.com",
+      "assets.adobedtm.com",
+      "omtrdc.net",
+      "demdex.net"
+    ]
+  },
+  {
+    "company": "Meta Platforms",
+    "category": "ads",
+    "risk": "high",
+    "purpose": "Advertising and cross-site tracking",
+    "hq": "United States",
+    "reputation": "High tracking footprint",
+    "domains": [
+      "facebook.com",
+      "connect.facebook.net",
+      "instagram.com"
+    ]
+  },
+  {
+    "company": "Microsoft",
+    "category": "identity",
+    "risk": "medium",
+    "purpose": "Identity and account services",
+    "hq": "United States",
+    "reputation": "Broad ecosystem services",
+    "domains": [
+      "microsoft.com",
+      "login.microsoftonline.com",
+      "login.live.com",
+      "bing.com",
+      "msn.com",
+      "office.com",
+      "azure.com"
+    ]
+  },
+  {
+    "company": "Microsoft",
+    "category": "analytics",
+    "risk": "medium",
+    "purpose": "Usage measurement and insights",
+    "hq": "United States",
+    "reputation": "Product telemetry and analytics",
+    "domains": [
+      "clarity.ms",
+      "scripts.clarity.ms",
+      "bat.bing.com",
+      "web.vortex.data.microsoft.com"
+    ]
+  },
+  {
+    "company": "OneTrust",
+    "category": "consent",
+    "risk": "low",
+    "purpose": "Consent management",
+    "hq": "United States",
+    "reputation": "Consent infrastructure provider",
+    "domains": [
+      "cookielaw.org",
+      "onetrust.com",
+      "geolocation.onetrust.com"
+    ]
+  },
+  {
+    "company": "LivePerson",
+    "category": "support",
+    "risk": "low",
+    "purpose": "Customer chat and support",
+    "hq": "United States",
+    "reputation": "Support tooling with tracking surface",
+    "domains": [
+      "liveperson.net",
+      "lpsnmedia.net",
+      "publisher.liveperson.net",
+      "accdn.lpsnmedia.net",
+      "lpcdn.lpsnmedia.net",
+      "lptag.liveperson.net"
+    ]
+  },
+  {
+    "company": "Quantcast",
+    "category": "analytics",
+    "risk": "medium",
+    "purpose": "Audience measurement and ads",
+    "hq": "United States",
+    "reputation": "Measurement and ad targeting",
+    "domains": [
+      "quantserve.com",
+      "quantcount.com"
+    ]
+  },
+  {
+    "company": "Taboola",
+    "category": "ads",
+    "risk": "high",
+    "purpose": "Content recommendation and ads",
+    "hq": "Israel",
+    "reputation": "Recommendation and ad network",
+    "domains": [
+      "taboola.com",
+      "cdn.taboola.com",
+      "trc.taboola.com",
+      "trc-events.taboola.com"
+    ]
+  },
+  {
+    "company": "Reddit",
+    "category": "ads",
+    "risk": "medium",
+    "purpose": "Advertising and audience measurement",
+    "hq": "United States",
+    "reputation": "Social advertising ecosystem",
+    "domains": [
+      "reddit.com",
+      "redditstatic.com",
+      "pixel.reddit.com",
+      "pixel-config.reddit.com",
+      "alb.reddit.com"
+    ]
+  },
+  {
+    "company": "Contentful",
+    "category": "content",
+    "risk": "low",
+    "purpose": "Content delivery and asset hosting",
+    "hq": "Germany",
+    "reputation": "Headless CMS and content infrastructure",
+    "domains": [
+      "ctfassets.net",
+      "images.ctfassets.net",
+      "contentful.com"
+    ]
+  },
+  {
+    "company": "Cloudflare",
+    "category": "risk",
+    "risk": "low",
+    "purpose": "Security, performance, and anti-bot controls",
+    "hq": "United States",
+    "reputation": "Infrastructure and performance provider",
+    "domains": [
+      "cloudflare.com",
+      "cloudflareinsights.com",
+      "static.cloudflareinsights.com"
+    ]
+  },
+  {
+    "company": "Fingerprint",
+    "category": "risk",
+    "risk": "high",
+    "purpose": "Device fingerprinting and fraud detection",
+    "hq": "United States",
+    "reputation": "Device fingerprinting vendor",
+    "domains": [
+      "fingerprint.com",
+      "fingerprintjs.com"
+    ]
+  },
+  {
+    "company": "DataDome",
+    "category": "risk",
+    "risk": "high",
+    "purpose": "Bot detection and device fingerprinting",
+    "hq": "France",
+    "reputation": "Anti-bot and fraud platform",
+    "domains": [
+      "datadome.co"
+    ]
+  },
+  {
+    "company": "Arkose Labs",
+    "category": "risk",
+    "risk": "high",
+    "purpose": "Bot mitigation and risk scoring",
+    "hq": "United States",
+    "reputation": "Challenge and fraud controls",
+    "domains": [
+      "arkoselabs.com"
+    ]
+  },
+  {
+    "company": "Hotjar",
+    "category": "analytics",
+    "risk": "medium",
+    "purpose": "Behavior analytics and session replay",
+    "hq": "Malta",
+    "reputation": "Behavior analysis and replay tooling",
+    "domains": [
+      "hotjar.com",
+      "hotjar.io"
+    ]
+  },
+  {
+    "company": "Mixpanel",
+    "category": "analytics",
+    "risk": "medium",
+    "purpose": "Product analytics",
+    "hq": "United States",
+    "reputation": "Behavior analytics platform",
+    "domains": [
+      "mixpanel.com"
+    ]
+  },
+  {
+    "company": "Amplitude",
+    "category": "analytics",
+    "risk": "medium",
+    "purpose": "Product analytics",
+    "hq": "United States",
+    "reputation": "Behavior analytics platform",
+    "domains": [
+      "amplitude.com"
+    ]
+  },
+  {
+    "company": "Segment",
+    "category": "analytics",
+    "risk": "medium",
+    "purpose": "Customer data routing and analytics",
+    "hq": "United States",
+    "reputation": "Event routing and analytics layer",
+    "domains": [
+      "segment.io"
+    ]
+  },
+  {
+    "company": "FullStory",
+    "category": "analytics",
+    "risk": "medium",
+    "purpose": "Session replay and analytics",
+    "hq": "United States",
+    "reputation": "Behavior replay platform",
+    "domains": [
+      "fullstory.com"
+    ]
+  },
+  {
+    "company": "Heap",
+    "category": "analytics",
+    "risk": "medium",
+    "purpose": "Product analytics",
+    "hq": "United States",
+    "reputation": "Event capture and analytics",
+    "domains": [
+      "heap.io"
+    ]
+  },
+  {
+    "company": "Ahrefs",
+    "category": "analytics",
+    "risk": "medium",
+    "purpose": "SEO and web analytics",
+    "hq": "Singapore",
+    "reputation": "SEO and analytics provider",
+    "domains": [
+      "ahrefs.com",
+      "analytics.ahrefs.com"
+    ]
+  },
+  {
+    "company": "LinkedIn",
+    "category": "ads",
+    "risk": "high",
+    "purpose": "Advertising and identity",
+    "hq": "United States",
+    "reputation": "Professional identity services",
+    "domains": [
+      "linkedin.com",
+      "licdn.com",
+      "px.ads.linkedin.com",
+      "px4.ads.linkedin.com",
+      "snap.licdn.com",
+      "ads.linkedin.com"
+    ]
+  },
+  {
+    "company": "TikTok",
+    "category": "ads",
+    "risk": "high",
+    "purpose": "Advertising and social tracking",
+    "hq": "Global",
+    "reputation": "High social/ad tracking footprint",
+    "domains": [
+      "tiktok.com",
+      "ads.tiktok.com"
+    ]
+  }
+]

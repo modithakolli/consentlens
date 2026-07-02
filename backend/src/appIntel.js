@@ -19,6 +19,24 @@ const APP_RULES = [
     summary: "Amazon combines commerce, logistics, and account data across a large ecosystem."
   },
   {
+    name: "NVIDIA",
+    aliases: ["nvidia", "nvidia.com"],
+    privacyScore: 49,
+    platform: "Hardware, software, and developer ecosystem",
+    dataCategories: ["Identity", "Device data", "Usage data", "Interaction data"],
+    permissions: ["Account access", "Notifications", "Location (support / fraud)"],
+    thirdParties: ["Advertising partners", "Consent tools", "Analytics vendors"],
+    concerns: ["Analytics", "Marketing", "Third-party partner sharing"],
+    controls: [
+      { label: "Cookie settings", detail: "Review accept, manage, and privacy choice controls before consenting." },
+      { label: "Privacy policy / choices", detail: "Check the privacy and cookie policy for tracking and third-party partner details." }
+    ],
+    retention: [
+      { label: "Usage and interactions", detail: "May be retained for support, analytics, and marketing measurement." }
+    ],
+    summary: "NVIDIA sites often combine product content with cookie, analytics, and marketing infrastructure."
+  },
+  {
     name: "Instagram",
     aliases: ["instagram", "instagram app", "ig"],
     privacyScore: 28,
@@ -186,6 +204,24 @@ const APP_RULES = [
       { label: "Workspace data", detail: "Enterprise retention and admin policies may override consumer settings." }
     ],
     summary: "Google services often combine search, activity, ads, and productivity settings across one account."
+  },
+  {
+    name: "Singtel",
+    aliases: ["singtel", "singtel.com"],
+    privacyScore: 44,
+    platform: "Telecom, services, and customer support",
+    dataCategories: ["Identity", "Usage data", "Support data", "Device identifiers"],
+    permissions: ["Account access", "Location (service support)", "Notifications"],
+    thirdParties: ["Analytics vendors", "Support vendors", "Advertising partners"],
+    concerns: ["Cookie and analytics sharing", "Support tooling", "Ad measurement"],
+    controls: [
+      { label: "Cookie policy", detail: "Review cookie and privacy settings, especially on consumer-facing pages." },
+      { label: "Account privacy settings", detail: "Check any personal data protection controls in account pages." }
+    ],
+    retention: [
+      { label: "Support and usage data", detail: "May persist for service operations, diagnostics, and account history." }
+    ],
+    summary: "Singtel combines telecom services with marketing, analytics, and support infrastructure."
   },
   {
     name: "Meta",

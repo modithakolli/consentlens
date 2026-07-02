@@ -1,5 +1,6 @@
 (function attachConsentLensRules(globalScope) {
-  const TRACKER_DOMAINS = {
+  let TRACKER_DB = [];
+  let TRACKER_DOMAINS = {
     analytics: [
       "google-analytics.com",
       "googletagmanager.com",
@@ -128,6 +129,77 @@
     return categories;
   }
 
+  function normalizeRisk(risk) {
+    const value = String(risk || "").toLowerCase();
+    if (value === "high") return "high";
+    if (value === "medium") return "medium";
+    if (value === "low") return "low";
+    return "unknown";
+  }
+
+  function buildTrackerDomains(records) {
+    const next = {};
+    records.forEach((record) => {
+      const category = String(record.category || "unknown").toLowerCase();
+      if (!next[category]) next[category] = [];
+      (record.domains || []).forEach((domain) => {
+        if (typeof domain === "string" && domain.trim()) {
+          next[category].push(domain.trim().toLowerCase());
+        }
+      });
+    });
+
+    Object.keys(next).forEach((category) => {
+      next[category] = Array.from(new Set(next[category]));
+    });
+    return next;
+  }
+
+  function setTrackerIntel(records) {
+    TRACKER_DB = Array.isArray(records) ? records.map((record) => ({
+      company: String(record.company || "Unknown"),
+      category: String(record.category || "unknown").toLowerCase(),
+      risk: normalizeRisk(record.risk),
+      purpose: String(record.purpose || "Unknown third-party service"),
+      hq: String(record.hq || "Unknown"),
+      reputation: String(record.reputation || "Unknown"),
+      domains: Array.isArray(record.domains) ? record.domains.filter((domain) => typeof domain === "string").map((domain) => domain.trim().toLowerCase()) : []
+    })) : [];
+
+    if (TRACKER_DB.length) {
+      TRACKER_DOMAINS = buildTrackerDomains(TRACKER_DB);
+      globalScope.ConsentLensRules.TRACKER_DOMAINS = TRACKER_DOMAINS;
+    }
+  }
+
+  function lookupTracker(hostname) {
+    const host = normalizeHost(hostname);
+    const match = TRACKER_DB.find((record) => record.domains.some((domain) => domainMatches(host, domain)));
+    if (!match) {
+      return {
+        host,
+        company: "Unknown",
+        category: "unknown",
+        risk: "unknown",
+        purpose: "Unknown third-party service",
+        hq: "Unknown",
+        reputation: "Unknown",
+        known: false
+      };
+    }
+
+    return {
+      host,
+      company: match.company,
+      category: match.category,
+      risk: match.risk,
+      purpose: match.purpose,
+      hq: match.hq,
+      reputation: match.reputation,
+      known: true
+    };
+  }
+
   globalScope.ConsentLensRules = {
     TRACKER_DOMAINS,
     DATA_PATTERNS,
@@ -136,6 +208,8 @@
     DARK_PATTERN_TERMS,
     normalizeHost,
     domainMatches,
-    categorizeDomain
+    categorizeDomain,
+    setTrackerIntel,
+    lookupTracker
   };
 })(typeof self !== "undefined" ? self : window);

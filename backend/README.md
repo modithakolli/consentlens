@@ -34,6 +34,7 @@ node server.js
 ## Endpoints
 
 - `GET /health`
+- `GET /tracker-intel`
 - `POST /analyze-policy`
 - `POST /domain-intel`
 - `POST /app-intel`
@@ -49,6 +50,8 @@ The policy analyzer returns:
 - extracted clause signals for policy change monitoring
 - a local app privacy profile for well-known services
 - retention guidance when the policy names a timeline
+
+Tracker and company lookups are driven by the shared dataset in `extension/shared/tracker-intel.json` so the extension and backend use the same labels.
 
 ## Privacy posture
 

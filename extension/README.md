@@ -55,6 +55,14 @@ It cannot guarantee detection of every hidden tracker, server-side data sharing,
 
 It should not be treated as a legal compliance verdict. The tool is designed to summarize, surface risk, and help a person decide.
 
+## Freeze Scope
+
+The beta release stays centered on the current consent question:
+
+**What am I agreeing to right now?**
+
+That keeps the product focused on trackers, OAuth permissions, consent banners, and readable risk.
+
 ## Version roadmap
 
 ### Version 1: Tracker + explanation foundation
@@ -118,6 +126,19 @@ Run the backend app-intelligence smoke test from the project root:
 
 ```powershell
 node backend/test/app-intel.mjs
+```
+
+Run the backend tracker-intelligence smoke test from the project root:
+
+```powershell
+node backend/test/tracker-intel.mjs
+```
+
+Or run both backend smoke tests together:
+
+```powershell
+cd backend
+npm test
 ```
 
 ## How the risk score works

@@ -1,7 +1,7 @@
 import { createServer } from "node:http";
 import { URL } from "node:url";
 import { analyzePolicyFromUrl } from "./src/policyAnalyzer.js";
-import { getDomainIntel } from "./src/domainIntel.js";
+import { getDomainIntel, getTrackerIntel } from "./src/domainIntel.js";
 import { legalRightsForRegion } from "./src/legalRights.js";
 import { lookupApp } from "./src/appIntel.js";
 
@@ -141,6 +141,14 @@ const server = createServer(async (request, response) => {
       sendJson(response, 200, {
         ok: true,
         rights: legalRightsForRegion(url.searchParams.get("region") || "IN")
+      }, origin || "*");
+      return;
+    }
+
+    if (request.method === "GET" && url.pathname === "/tracker-intel") {
+      sendJson(response, 200, {
+        ok: true,
+        trackerIntel: getTrackerIntel()
       }, origin || "*");
       return;
     }

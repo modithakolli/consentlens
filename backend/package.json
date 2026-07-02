@@ -5,7 +5,10 @@
   "type": "module",
   "scripts": {
     "dev": "node server.js",
-    "start": "node server.js"
+    "start": "node server.js",
+    "test": "node test/app-intel.mjs && node test/tracker-intel.mjs",
+    "test:app-intel": "node test/app-intel.mjs",
+    "test:tracker-intel": "node test/tracker-intel.mjs"
   },
   "engines": {
     "node": ">=18"

@@ -4,6 +4,14 @@ ConsentLens is a hybrid browser-extension product for digital consent decisions.
 
 It explains what people are agreeing to across cookie banners, trackers, OAuth permissions, privacy policies, and legal rights before they click accept or continue.
 
+## Freeze Scope
+
+The beta release stays focused on one question:
+
+**What am I agreeing to right now?**
+
+That means tracker detection, OAuth permissions, consent banners, policy summaries, and plain-English risk. It does not try to become a full legal advisor, mobile app scanner, or enterprise compliance suite yet.
+
 ## Product Shape
 
 ```text
@@ -89,6 +97,10 @@ The extension performs live browsing analysis locally. Backend calls are used fo
 
 The extension can be pointed at a production backend from the `Settings` page in the popup without changing code.
 
+## Intelligence Database
+
+The tracker/company intelligence now lives in a shared dataset at `extension/shared/tracker-intel.json`. The extension and backend both read from it so domain, company, category, and risk labels stay aligned.
+
 ## Share It With Other People
 
 For other people to use this as a real product, the backend needs to be hosted somewhere public and the extension needs to be packaged for distribution.
@@ -103,6 +115,8 @@ For other people to use this as a real product, the backend needs to be hosted s
 ```
 
 That creates a zip you can upload to the Chrome Web Store or hand to a tester. The extension itself can still be installed unpacked from the `extension` folder during development.
+
+For a practical beta, give it to testers once the extension loads cleanly, the scanner fixture test passes, and the backend smoke tests pass. Local unpacked installs are for development; packaged builds are for testers and the Chrome Web Store.
 
 ## Security And Privacy Posture
 

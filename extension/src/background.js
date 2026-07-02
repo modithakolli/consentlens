@@ -6,6 +6,7 @@ const DEFAULT_SETTINGS = {
 };
 
 const tabState = new Map();
+let trackerIntelReady = null;
 const MESSAGE_TYPES = new Set([
   "CONSENTLENS_CONTENT_REPORT",
   "CONSENTLENS_GET_REPORT",
@@ -115,6 +116,21 @@ function safeHost(url) {
   } catch (error) {
     return "";
   }
+}
+
+async function hydrateTrackerIntel() {
+  if (trackerIntelReady) return trackerIntelReady;
+  trackerIntelReady = (async () => {
+    try {
+      const response = await fetch(chrome.runtime.getURL("shared/tracker-intel.json"));
+      if (!response.ok) return;
+      const records = await response.json();
+      ConsentLensRules.setTrackerIntel?.(records);
+    } catch (error) {
+      logError("tracker-intel", error);
+    }
+  })();
+  return trackerIntelReady;
 }
 
 function isThirdParty(requestHost, pageHost) {
@@ -522,6 +538,12 @@ chrome.runtime.onInstalled.addListener(() => {
     chrome.storage.local.set(sanitizeSettings(result));
   });
 });
+
+chrome.runtime.onStartup.addListener(() => {
+  hydrateTrackerIntel();
+});
+
+hydrateTrackerIntel();
 
 chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
   if (changeInfo.status === "loading") {

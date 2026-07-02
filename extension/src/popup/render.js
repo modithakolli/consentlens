@@ -185,7 +185,7 @@ export function renderGraph(report, analysis) {
       arrow(),
       graphNode(party.host, party.categories.length ? party.categories.join(", ") : "unknown"),
       arrow(),
-      graphNode(intel.company || "Unknown company", intel.purpose || "Unknown purpose")
+      graphNode(intel.company || "Unknown company", `${intel.category || "unknown"} · ${intel.risk || "unknown"} risk`)
     );
     node.appendChild(row);
   });
