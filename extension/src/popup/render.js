@@ -362,8 +362,11 @@ export function renderSiteIntel(siteIntel) {
     node.appendChild(textNode("p", "Open a site and refresh to build automatic site intelligence from the current host.", "note"));
     return;
   }
-  if (!siteIntel.found) {
-    node.appendChild(textNode("p", siteIntel.summary || "No local site profile yet.", "note"));
+  if (siteIntel.company || siteIntel.category) {
+    const title = siteIntel.company && siteIntel.company !== "Unknown" ? siteIntel.company : (siteIntel.host || "Current site");
+    node.appendChild(textNode("p", `${title} - ${siteIntel.category || "unknown"} · ${siteIntel.risk || "unknown"} risk`));
+    node.appendChild(textNode("p", siteIntel.purpose || "Unknown purpose", "note"));
+    node.appendChild(textNode("p", `HQ: ${siteIntel.hq || "Unknown"} · Reputation: ${siteIntel.reputation || "Unknown"}`, "note"));
     return;
   }
   node.appendChild(textNode("p", `${siteIntel.name} - privacy score ${siteIntel.privacyScore}/100`));

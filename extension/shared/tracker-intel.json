@@ -37,7 +37,24 @@
     "reputation": "Identity provider surface",
     "domains": [
       "accounts.google.com",
-      "google.com"
+      "google.com",
+      "google.co.in",
+      "googleapis.com",
+      "fonts.googleapis.com",
+      "translate.googleapis.com"
+    ]
+  },
+  {
+    "company": "Google",
+    "category": "utility",
+    "risk": "low",
+    "purpose": "Shared web infrastructure and assets",
+    "hq": "United States",
+    "reputation": "Common shared asset and utility surface",
+    "domains": [
+      "gstatic.com",
+      "fonts.gstatic.com",
+      "translate.google.com"
     ]
   },
   {

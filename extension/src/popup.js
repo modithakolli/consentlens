@@ -16,6 +16,29 @@ import {
 let currentReport = null;
 let currentAnalysis = null;
 
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+async function waitForFreshReport(tabId, previousUpdatedAt) {
+  for (let attempt = 0; attempt < 10; attempt += 1) {
+    const response = await sendMessage({
+      type: "CONSENTLENS_GET_REPORT",
+      tabId
+    });
+    if (response.ok && response.report && response.report.updatedAt && response.report.updatedAt !== previousUpdatedAt) {
+      return response.report;
+    }
+    await sleep(180);
+  }
+
+  const fallback = await sendMessage({
+    type: "CONSENTLENS_GET_REPORT",
+    tabId
+  });
+  return fallback.report;
+}
+
 async function copyDsar() {
   const node = el("dsarDraft");
   const text = node.value || "";
@@ -36,14 +59,10 @@ async function refresh() {
   if (!tab?.id) return;
 
   el("host").textContent = tab.url || "Current tab";
+  const previousUpdatedAt = currentReport?.updatedAt || 0;
   await scanActiveTab(tab.id);
 
-  const response = await sendMessage({
-    type: "CONSENTLENS_GET_REPORT",
-    tabId: tab.id
-  });
-
-  currentReport = response.report;
+  currentReport = await waitForFreshReport(tab.id, previousUpdatedAt);
   currentAnalysis = null;
   renderReport(currentReport, null);
 

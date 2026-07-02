@@ -491,6 +491,22 @@ async function lookupApp(query) {
   return payload.app || null;
 }
 
+async function lookupDomain(hostname) {
+  const settings = await getSettings();
+  const response = await fetch(`${settings.apiBaseUrl}/domain-intel`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ domains: [hostname] })
+  });
+
+  if (!response.ok) {
+    throw new Error(`Backend domain lookup failed with ${response.status}`);
+  }
+
+  const payload = await response.json();
+  return payload.domains?.[0] || null;
+}
+
 async function refreshSiteIntel(state) {
   const host = state.pageHost || safeHost(state.pageUrl || "");
   if (!host) {
@@ -504,13 +520,25 @@ async function refreshSiteIntel(state) {
   }
 
   try {
-    const app = await lookupApp(host);
-    state.siteIntel = app;
+    const domain = await lookupDomain(host);
+    const app = domain?.known ? null : await lookupApp(host).catch(() => null);
+    state.siteIntel = domain?.known ? domain : (app || domain || null);
     state.siteIntelHost = host;
-    return app;
+    return state.siteIntel;
   } catch (error) {
     logError("site-intel", error, { host });
-    state.siteIntel = null;
+    state.siteIntel = {
+      host,
+      company: "Unknown",
+      category: "unknown",
+      risk: "unknown",
+      purpose: "Unknown site profile",
+      hq: "Unknown",
+      reputation: "Unknown",
+      known: false,
+      found: false,
+      summary: "No local site profile yet."
+    };
     state.siteIntelHost = host;
     return null;
   }
