@@ -283,6 +283,13 @@ function renderPolicyIntelligence(analysis) {
     return;
   }
 
+  if (analysis.source === "local") {
+    const note = document.createElement("p");
+    note.className = "note";
+    note.textContent = analysis.notice || "Backend unavailable, so this summary is built from the current page only.";
+    node.appendChild(note);
+  }
+
   if (analysis.error) {
     const p = document.createElement("p");
     p.className = "error";
@@ -559,6 +566,31 @@ function renderEvidenceQA(report, analysis, question) {
   node.appendChild(p);
 }
 
+async function askEvidence(question) {
+  const query = String(question || el("evidenceQuestion").value || "").trim();
+  if (!query) {
+    return;
+  }
+
+  renderEvidenceQA(currentReport, currentAnalysis, query);
+  const answer = answerEvidenceQuestion(currentReport, currentAnalysis, query);
+  try {
+    await chrome.runtime.sendMessage({
+      type: "CONSENTLENS_STORE_QA",
+      entry: {
+        question: query,
+        answer,
+        pageUrl: currentReport?.pageUrl || "",
+        pageHost: currentReport?.pageHost || "",
+        savedAt: Date.now()
+      }
+    });
+  } catch (error) {
+    // Local history is best effort.
+  }
+  await loadMemory();
+}
+
 function renderReceipts(receipts) {
   const node = el("receipts");
   node.innerHTML = "";
@@ -584,6 +616,130 @@ function renderReceipts(receipts) {
     li.textContent = `${host}: ${receipt.actionLabel} on ${date}`;
     node.appendChild(li);
   });
+}
+
+function renderMemory(memory) {
+  const summary = el("memorySummary");
+  const feed = el("memoryFeed");
+  summary.innerHTML = "";
+  feed.innerHTML = "";
+
+  if (!memory) {
+    summary.append(
+      labelItem("Site scans", "0", "saved on this device"),
+      labelItem("Policy snapshots", "0", "saved on this device"),
+      labelItem("Consent receipts", "0", "saved on this device"),
+      labelItem("Q&A answers", "0", "saved on this device")
+    );
+    const li = document.createElement("li");
+    li.className = "note";
+    li.textContent = "No saved intelligence yet.";
+    feed.appendChild(li);
+    return;
+  }
+
+  const counts = memory.counts || {};
+  summary.append(
+    labelItem("Site scans", String(counts.timeline || 0), "recent site activity"),
+    labelItem("Policy snapshots", String(counts.policies || 0), "stored policy notes"),
+    labelItem("Consent receipts", String(counts.receipts || 0), "accepted or reviewed flows"),
+    labelItem("Q&A answers", String(counts.qa || 0), "answers saved locally")
+  );
+
+  if (!memory.items?.length) {
+    const li = document.createElement("li");
+    li.className = "note";
+    li.textContent = "No saved intelligence yet.";
+    feed.appendChild(li);
+    return;
+  }
+
+  memory.items.slice(0, 8).forEach((item) => {
+    const li = document.createElement("li");
+    const date = item.when ? new Date(item.when).toLocaleString() : "just now";
+    const title = document.createElement("strong");
+    title.textContent = item.title;
+    const detail = document.createElement("span");
+    detail.textContent = `${item.detail} - ${date}`;
+    li.append(title, document.createElement("br"), detail);
+    feed.appendChild(li);
+  });
+}
+
+function buildLocalPolicyAnalysis(report, region = "IN") {
+  if (!report) {
+    return {
+      source: "local",
+      policy: null,
+      domainIntel: [],
+      changeRecord: null,
+      error: "Load a page first, then try Analyze policy again."
+    };
+  }
+
+  const score = report.risk?.score || 0;
+  const grade = score >= 75 ? "C" : score >= 45 ? "B" : "A";
+  const collected = (report.content?.policySignals?.dataCollected || []).map((item) => item.label);
+  const shared = (report.content?.policySignals?.sharing || []).map((item) => item.label);
+  const risks = (report.risk?.reasons || []).slice(0, 5).map((reason) => ({
+    severity: "Note",
+    title: reason,
+    evidence: reason
+  }));
+
+  return {
+    source: "local",
+    policy: {
+      policyUrl: null,
+      pageUrl: report.pageUrl || "",
+      pageTitle: report.content?.pageTitle || "",
+      risk: report.risk || { score: 0, level: "Low" },
+      privacyLabel: {
+        grade,
+        collects: collected.length ? collected : (report.plainEnglish?.dataCollected || []).slice(0, 3),
+        shares: shared.length ? shared : (report.plainEnglish?.sharedWith || []).slice(0, 3),
+        retention: "Not stated on the visible page",
+        rights: [
+          `${region}: request access to your personal data.`,
+          `${region}: ask to delete or export your data.`,
+          `${region}: review or withdraw optional consent where available.`
+        ]
+      },
+      riskPoints: risks,
+      summary: [
+        "Local summary based on the current page and tracker signals.",
+        report.plainEnglish?.trackers || "No tracker summary available.",
+        report.plainEnglish?.oauth || "No OAuth summary available."
+      ],
+      legal: {
+        region,
+        law: "Local privacy guidance",
+        rights: [
+          `${region}: ask for access to your data.`,
+          `${region}: ask for deletion or export where applicable.`
+        ]
+      },
+      aiTraining: "Unknown from visible page text",
+      saleOrSharing: shared.length ? shared.join(", ") : "No strong sharing signal found",
+      retention: "Not stated on the visible page"
+    },
+    domainIntel: currentDomainIntel,
+    changeRecord: null,
+    error: ""
+  };
+}
+
+function renderCurrentMemory(memory) {
+  renderMemory(memory);
+}
+
+async function loadMemory() {
+  try {
+    const response = await chrome.runtime.sendMessage({ type: "CONSENTLENS_GET_MEMORY" });
+    renderCurrentMemory(response.ok ? response.memory : null);
+  } catch (error) {
+    renderCurrentMemory(null);
+  }
 }
 
 async function getActiveTab() {
@@ -701,12 +857,13 @@ async function refresh() {
   });
   renderTimeline(timelineResponse.timeline);
   renderPolicyIntelligence(null);
+  await loadMemory();
 }
 
 el("refresh").addEventListener("click", refresh);
 el("openSettings").addEventListener("click", () => chrome.runtime.openOptionsPage());
 el("copyDsar").addEventListener("click", copyDsar);
-el("askEvidence").addEventListener("click", () => renderEvidenceQA(currentReport, currentAnalysis));
+el("askEvidence").addEventListener("click", () => askEvidence(el("evidenceQuestion").value));
 el("evidenceQuestion").addEventListener("input", () => renderEvidenceQA(currentReport, currentAnalysis));
 el("analyzeNutrition").addEventListener("click", () => el("analyzePolicy").click());
 ["Why is this risky?", "What data is collected?", "Who gets access?", "Can I request deletion?"].forEach((question) => {
@@ -715,7 +872,7 @@ el("analyzeNutrition").addEventListener("click", () => el("analyzePolicy").click
   button.textContent = question;
   button.addEventListener("click", () => {
     el("evidenceQuestion").value = question;
-    renderEvidenceQA(currentReport, currentAnalysis, question);
+    askEvidence(question);
   });
   el("faqBar")?.appendChild(button);
 });
@@ -738,7 +895,17 @@ el("analyzePolicy").addEventListener("click", async () => {
   });
 
   if (!response.ok) {
-    renderPolicyIntelligence({ error: `${response.error}. Start the backend with: node backend/server.js` });
+    const fallback = buildLocalPolicyAnalysis(currentReport, "IN");
+    fallback.notice = `Showing a local summary instead because the backend is unavailable.`;
+    currentAnalysis = fallback;
+    renderPolicyIntelligence(fallback);
+    renderGraph(currentReport, currentAnalysis);
+    renderPrivacyLabel(currentReport, currentAnalysis);
+    renderSiteIntelligence(currentReport);
+    renderFingerprinting(currentReport);
+    renderDsar(currentReport, currentAnalysis);
+    renderEvidenceQA(currentReport, currentAnalysis);
+    await loadMemory();
     return;
   }
 
@@ -751,7 +918,9 @@ el("analyzePolicy").addEventListener("click", async () => {
   renderFingerprinting(currentReport);
   renderDsar(currentReport, currentAnalysis);
   renderEvidenceQA(currentReport, currentAnalysis);
+  await loadMemory();
 });
 refresh().catch((error) => {
   paragraph("plainEnglish", [`Unable to read this tab: ${error.message}`]);
 });
+loadMemory().catch(() => {});

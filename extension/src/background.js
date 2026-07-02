@@ -263,6 +263,10 @@ function storePolicySnapshot(snapshot) {
         pageUrl: snapshot.pageUrl,
         title: snapshot.title || "",
         signals: currentSignals,
+        summary: snapshot.summary || [],
+        privacyLabel: snapshot.privacyLabel || null,
+        risk: snapshot.risk || null,
+        rights: snapshot.rights || [],
         savedAt: Date.now()
       };
 
@@ -379,7 +383,11 @@ async function analyzeCurrentPolicy(tabId, region = "IN") {
     policyUrl: policyPayload.analysis.policyUrl,
     pageUrl: policyPayload.analysis.pageUrl,
     title: policyPayload.analysis.pageTitle || "",
-    signals: policyPayload.analysis.signals
+    signals: policyPayload.analysis.signals,
+    summary: policyPayload.analysis.summary || [],
+    privacyLabel: policyPayload.analysis.privacyLabel || null,
+    risk: policyPayload.analysis.risk || null,
+    rights: policyPayload.analysis.legal?.rights || []
   });
   const domainResponse = await fetch(`${settings.apiBaseUrl}/domain-intel`, {
     method: "POST",
@@ -404,6 +412,14 @@ function storeReceipt(receipt) {
     const receipts = Array.isArray(result.consentReceipts) ? result.consentReceipts : [];
     const next = [receipt, ...receipts].slice(0, 50);
     chrome.storage.local.set({ consentReceipts: next });
+  });
+}
+
+function storeQaEntry(entry) {
+  chrome.storage.local.get({ evidenceQa: [] }, (result) => {
+    const history = Array.isArray(result.evidenceQa) ? result.evidenceQa : [];
+    const next = [entry, ...history].slice(0, 50);
+    chrome.storage.local.set({ evidenceQa: next });
   });
 }
 
@@ -478,6 +494,62 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     return true;
   }
 
+  if (message?.type === "CONSENTLENS_GET_MEMORY") {
+    chrome.storage.local.get(
+      {
+        consentReceipts: [],
+        activityTimeline: [],
+        policySnapshots: [],
+        evidenceQa: []
+      },
+      (result) => {
+        const receipts = Array.isArray(result.consentReceipts) ? result.consentReceipts : [];
+        const timeline = Array.isArray(result.activityTimeline) ? result.activityTimeline : [];
+        const policies = Array.isArray(result.policySnapshots) ? result.policySnapshots : [];
+        const qaHistory = Array.isArray(result.evidenceQa) ? result.evidenceQa : [];
+
+        sendResponse({
+          ok: true,
+          memory: {
+            counts: {
+              receipts: receipts.length,
+              timeline: timeline.length,
+              policies: policies.length,
+              qa: qaHistory.length
+            },
+            items: [
+              ...timeline.slice(0, 3).map((entry) => ({
+                type: "timeline",
+                title: entry.pageHost || entry.pageUrl || "Unknown site",
+                detail: `${entry.level} (${entry.score}/100), ${entry.thirdParties} third-party domains`,
+                when: entry.savedAt
+              })),
+              ...policies.slice(0, 3).map((entry) => ({
+                type: "policy",
+                title: entry.title || entry.pageUrl || "Policy snapshot",
+                detail: `${(entry.signals || []).length} policy signals saved${entry.privacyLabel?.grade ? ` · grade ${entry.privacyLabel.grade}` : ""}${Array.isArray(entry.summary) && entry.summary.length ? ` · ${entry.summary[0]}` : ""}`,
+                when: entry.savedAt
+              })),
+              ...receipts.slice(0, 3).map((entry) => ({
+                type: "receipt",
+                title: entry.pageUrl || "Consent receipt",
+                detail: entry.actionLabel || "Accepted / reviewed",
+                when: entry.acceptedAt
+              })),
+              ...qaHistory.slice(0, 3).map((entry) => ({
+                type: "qa",
+                title: entry.pageHost || "Evidence Q&A",
+                detail: `${entry.question || "Question answered"}${entry.answer ? ` · ${String(entry.answer).slice(0, 90)}` : ""}`,
+                when: entry.savedAt
+              }))
+            ]
+          }
+        });
+      }
+    );
+    return true;
+  }
+
   if (message?.type === "CONSENTLENS_GET_SETTINGS") {
     getStoredSettings().then((settings) => sendResponse({ ok: true, settings }));
     return true;
@@ -495,6 +567,12 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     analyzeCurrentPolicy(message.tabId, message.region)
       .then((analysis) => sendResponse({ ok: true, analysis }))
       .catch((error) => sendResponse({ ok: false, error: error.message }));
+    return true;
+  }
+
+  if (message?.type === "CONSENTLENS_STORE_QA") {
+    storeQaEntry(message.entry || {});
+    sendResponse({ ok: true });
     return true;
   }
 

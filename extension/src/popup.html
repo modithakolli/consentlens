@@ -38,7 +38,7 @@
             <h2>Privacy Nutrition Label</h2>
             <p class="note">Readable answers first: data, sharing, retention, AI, and rights.</p>
           </div>
-          <button id="analyzeNutrition" type="button">Analyze</button>
+          <button id="analyzeNutrition" type="button">Build label</button>
         </div>
         <div id="privacyLabel" class="labelGrid"></div>
       </section>
@@ -79,10 +79,11 @@
         <div class="sectionHead">
           <h2>Policy Intelligence</h2>
           <div class="sectionActions">
-            <button id="openSettings" type="button">Settings</button>
-            <button id="analyzePolicy" type="button">Analyze</button>
+            <button id="openSettings" type="button">Backend</button>
+            <button id="analyzePolicy" type="button">Analyze policy</button>
           </div>
         </div>
+        <p class="note">When the backend is connected, this fetches and summarizes the linked policy. If not, ConsentLens falls back to a local summary from the current page.</p>
         <div id="policyIntelligence" class="stack"></div>
       </section>
 
@@ -94,6 +95,13 @@
       <section>
         <h2>Privacy Timeline</h2>
         <ul id="privacyTimeline" class="domains"></ul>
+      </section>
+
+      <section>
+        <h2>Saved Intelligence</h2>
+        <p class="note">What ConsentLens remembers on this device: site scans, policy snapshots, consent receipts, and Q&A answers.</p>
+        <div id="memorySummary" class="labelGrid"></div>
+        <ul id="memoryFeed" class="domains"></ul>
       </section>
 
       <details>
@@ -115,7 +123,7 @@
         <summary>Evidence Q&A</summary>
         <div id="faqBar" class="faqBar"></div>
         <textarea id="evidenceQuestion" class="draft" rows="2" placeholder="Why is this risky?"></textarea>
-        <button id="askEvidence" type="button">Ask</button>
+        <button id="askEvidence" type="button">Explain</button>
         <div id="evidenceAnswer" class="stack"></div>
       </details>
 
