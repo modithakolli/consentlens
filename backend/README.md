@@ -44,9 +44,11 @@ The policy analyzer returns:
 - a risk score
 - a plain-English summary
 - a privacy nutrition label
+- extracted control signals for training, temporary chats, activity controls, delete-account, and export paths
 - legal-rights context for the requested region
 - extracted clause signals for policy change monitoring
 - a local app privacy profile for well-known services
+- retention guidance when the policy names a timeline
 
 ## Privacy posture
 

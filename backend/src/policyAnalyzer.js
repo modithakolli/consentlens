@@ -13,6 +13,17 @@ const SIGNALS = [
   { id: "retention", label: "Data retention", pattern: /retain|retention|as long as necessary|deleted|deletion/i }
 ];
 
+const CONTROL_SIGNALS = [
+  { id: "trainingOptOut", label: "Training controls", pattern: /train(?:ing)? (?:toggle|controls?|settings)|opt out of training|use your data to improve|model improvement/i },
+  { id: "temporaryChats", label: "Temporary chats", pattern: /temporary chats?|ephemeral chats?|incognito chats?/i },
+  { id: "activityControls", label: "Activity controls", pattern: /web & app activity|activity controls?|history controls|manage activity/i },
+  { id: "deleteAccount", label: "Delete account path", pattern: /delete (?:your )?account|close (?:your )?account|remove (?:your )?account/i },
+  { id: "downloadData", label: "Download or export data", pattern: /download (?:your )?data|export (?:your )?data|data portability|request a copy/i },
+  { id: "feedbackBypass", label: "Feedback processing", pattern: /feedback.*(?:train|improv)|improve.*(?:with|using) feedback|even if you opt out/i },
+  { id: "crossPlatformSharing", label: "Cross-platform sharing", pattern: /cross-platform|across (?:our )?(?:products|services)|share.*across/i },
+  { id: "retentionWindow", label: "Retention timeline", pattern: /retain.*for|kept for|stored for|delete after|retention period/i }
+];
+
 function stripHtml(html) {
   return html
     .replace(/<script[\s\S]*?<\/script>/gi, " ")
@@ -39,6 +50,14 @@ function extractSignals(text) {
   }).filter(Boolean);
 }
 
+function extractControls(text) {
+  const lines = sentences(text);
+  return CONTROL_SIGNALS.map((signal) => {
+    const evidence = lines.find((line) => signal.pattern.test(line));
+    return evidence ? { ...signal, evidence } : null;
+  }).filter(Boolean);
+}
+
 function riskLevel(signals) {
   let score = 0;
   signals.forEach((signal) => {
@@ -53,8 +72,9 @@ function riskLevel(signals) {
   };
 }
 
-function plainEnglish(signals) {
+function plainEnglish(signals, controls) {
   const ids = new Set(signals.map((signal) => signal.id));
+  const controlIds = new Set(controls.map((control) => control.id));
   const summary = [];
   if (ids.has("identity") || ids.has("device")) summary.push("The policy appears to cover identity, account, device, cookie, or browser identifiers.");
   if (ids.has("behavior")) summary.push("The company may collect usage or interaction data to understand how people use the service.");
@@ -62,6 +82,12 @@ function plainEnglish(signals) {
   if (ids.has("ads")) summary.push("There are signs of advertising, sale, sharing, or behavioral targeting language.");
   if (ids.has("retention")) summary.push("The policy includes retention or deletion language, which should be reviewed for how long data is kept.");
   if (ids.has("ai")) summary.push("The policy mentions AI, profiling, automated decisions, or model training.");
+  if (controlIds.has("trainingOptOut")) summary.push("The policy mentions a training control or opt-out, which is important to verify before sharing sensitive content.");
+  if (controlIds.has("temporaryChats")) summary.push("The policy mentions temporary chats or ephemeral conversations.");
+  if (controlIds.has("activityControls")) summary.push("The policy mentions account or activity controls that may change how your data is used.");
+  if (controlIds.has("deleteAccount")) summary.push("There appears to be a delete-account path, which is useful for removing stored data later.");
+  if (controlIds.has("downloadData")) summary.push("The policy mentions a data export or download path.");
+  if (controlIds.has("feedbackBypass")) summary.push("Feedback may be used for improvement even when some privacy settings are enabled.");
   if (!summary.length) summary.push("No major data-use signals were found in the fetched policy text.");
   return summary;
 }
@@ -128,6 +154,17 @@ function privacyLabel(signals, region) {
   };
 }
 
+function controlLabels(controls) {
+  return controls.map((control) => control.label);
+}
+
+function retentionSummary(controls, signals) {
+  const retentionControl = controls.find((control) => control.id === "retentionWindow");
+  if (retentionControl?.evidence) return retentionControl.evidence;
+  const retentionSignal = signals.find((signal) => signal.id === "retention");
+  return retentionSignal?.evidence || "No retention language detected";
+}
+
 export async function analyzePolicyFromUrl({ policyUrl, pageUrl, region }) {
   if (!policyUrl) {
     throw new Error("policyUrl is required");
@@ -150,6 +187,7 @@ export async function analyzePolicyFromUrl({ policyUrl, pageUrl, region }) {
   const html = await response.text();
   const text = stripHtml(html).slice(0, 180000);
   const signals = extractSignals(text);
+  const controls = extractControls(text);
   const risk = riskLevel(signals);
 
   return {
@@ -158,12 +196,21 @@ export async function analyzePolicyFromUrl({ policyUrl, pageUrl, region }) {
     pageUrl: pageUrl || "",
     fetchedAt: Date.now(),
     risk,
-    privacyLabel: privacyLabel(signals, region),
-    summary: plainEnglish(signals),
+    privacyLabel: {
+      ...privacyLabel(signals, region),
+      controls: controlLabels(controls),
+      retention: retentionSummary(controls, signals)
+    },
+    summary: plainEnglish(signals, controls),
     signals: signals.map((signal) => ({
       id: signal.id,
       label: signal.label,
       evidence: signal.evidence
+    })),
+    controls: controls.map((control) => ({
+      id: control.id,
+      label: control.label,
+      evidence: control.evidence
     })),
     legal: legalRightsForRegion(region || "IN")
   };

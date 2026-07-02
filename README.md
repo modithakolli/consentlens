@@ -64,15 +64,18 @@ http://localhost:8787
 
 - Backend policy analysis
 - Policy signal extraction
+- AI, retention, and delete-account control detection
 - Privacy nutrition label
 - Consent change monitoring
 - Company reputation and headquarters context
+- Auto site intelligence from the current host
 - Data-flow visualization
 - DSAR draft generation
 - Privacy risk timeline
+- Critical-risk band for severe pages or flows
 - Fingerprinting heuristics
 - Evidence-grounded Q&A
-- App lookup for services like Amazon, Instagram, TikTok, OpenAI, and Microsoft
+- App lookup for services like Amazon, Google, Meta, Anthropic, GitHub, GitHub Copilot, OpenAI, and Microsoft
 - Legal-rights awareness
 - Domain to company intelligence
 - Extension-to-backend analysis flow

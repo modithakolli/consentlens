@@ -15,13 +15,15 @@ It scans the current page for privacy-policy signals, cookie-consent patterns, O
 - Whether the page mentions AI, profiling, model training, or automated decisions
 - What the privacy nutrition label looks like in plain English
 - Whether the policy appears to have changed since the last analysis
-- A quick app lookup for services like Amazon, Instagram, TikTok, OpenAI, and Microsoft
+- A quick app lookup for services like Amazon, Google, Meta, Anthropic, GitHub, GitHub Copilot, OpenAI, and Microsoft
 - The data-flow path from you to the site to third parties
 - A local privacy risk timeline across recent sites
 - A DSAR draft for access, deletion, or export requests
+- A site intelligence profile that loads automatically from the current host
+- A Critical risk band for the highest-risk pages
 - Fingerprinting signals and anti-bot style identification hints
 - An evidence-grounded Q&A helper for quick plain-English answers
-- A simple low, medium, or high risk score
+- A simple low, medium, high, or critical risk score
 
 ## Current modules
 
@@ -77,10 +79,11 @@ It should not be treated as a legal compliance verdict. The tool is designed to 
 ### Version 3: Policy and legal intelligence
 
 - Fetch and summarize linked privacy policies through the local backend
-- Extract data retention, deletion, sale/sharing, sensitive data, and AI-processing clauses
+- Extract data retention, deletion, sale/sharing, sensitive data, AI-processing, and training-control clauses
 - Show a privacy nutrition label with grade, collects, shares, retention, and rights
 - Monitor policy changes locally and flag new or removed signals
 - Add an app lookup profile for common services so the product can speak beyond websites
+- Auto-load a site intelligence profile from the current host
 - Render a data-flow visualization from you to the site to third parties and companies
 - Show a local privacy risk timeline based on recent scans
 - Generate a DSAR draft from the detected evidence
@@ -90,6 +93,7 @@ It should not be treated as a legal compliance verdict. The tool is designed to 
 - Map third-party domains to companies and likely purposes
 - Add a tracker graph showing site to third-party company relationships
 - Add a settings page for backend URL and region
+- Add black-box and white-box regression checks for consent interception and scanner behavior
 
 ## Install locally
 
@@ -108,6 +112,12 @@ Run the scanner fixture harness from the project root:
 
 ```powershell
 node extension/test/scan-fixtures.mjs
+```
+
+Run the backend app-intelligence smoke test from the project root:
+
+```powershell
+node backend/test/app-intel.mjs
 ```
 
 ## How the risk score works

@@ -24,6 +24,26 @@ function tag(category) {
   return span;
 }
 
+function detailList(label, values, emptyText = "none recorded") {
+  return `${label}: ${values?.length ? values.join(", ") : emptyText}`;
+}
+
+function renderControls(target, controls) {
+  if (!controls?.length) return;
+  const node = el(target);
+  const heading = textNode("p", "Controls and account actions", "note");
+  node.appendChild(heading);
+  const list = document.createElement("ul");
+  controls.slice(0, 5).forEach((control) => {
+    const li = document.createElement("li");
+    const strong = document.createElement("strong");
+    strong.textContent = `${control.label}: `;
+    li.append(strong, document.createTextNode(control.detail || "Review this setting in the product UI."));
+    list.appendChild(li);
+  });
+  node.appendChild(list);
+}
+
 function graphNode(title, subtitle) {
   const node = document.createElement("div");
   node.className = "graphNode";
@@ -190,9 +210,16 @@ export function renderPolicyIntelligence(analysis) {
 
   if (policy.privacyLabel) {
     node.appendChild(textNode("p", `Privacy grade: ${policy.privacyLabel.grade}. Collects: ${policy.privacyLabel.collects.length ? policy.privacyLabel.collects.join(", ") : "none detected"}. Shares: ${policy.privacyLabel.shares.length ? policy.privacyLabel.shares.join(", ") : "none detected"}. Retention: ${policy.privacyLabel.retention}.`));
+    if (policy.privacyLabel.controls?.length) {
+      node.appendChild(textNode("p", `Policy controls: ${policy.privacyLabel.controls.join(", ")}`, "note"));
+    }
   }
 
   policy.summary.slice(0, 5).forEach((text) => node.appendChild(textNode("p", text)));
+
+  if (policy.controls?.length) {
+    renderControls("policyIntelligence", policy.controls);
+  }
 
   if (policy.legal) {
     node.appendChild(textNode("p", `${policy.legal.region}: ${policy.legal.law}. Rights may include ${policy.legal.rights.slice(0, 2).join("; ")}.`, "note"));
@@ -216,6 +243,9 @@ export function renderPrivacyLabel(report, analysis) {
   const label = analysis?.policy?.privacyLabel;
   if (label) {
     node.appendChild(textNode("p", `Privacy grade ${label.grade}: collects ${label.collects.length ? label.collects.join(", ") : "nothing obvious"}; shares ${label.shares.length ? label.shares.join(", ") : "nothing obvious"}; retention ${label.retention}.`));
+    if (label.controls?.length) {
+      node.appendChild(textNode("p", `Controls: ${label.controls.join(", ")}`, "note"));
+    }
     return;
   }
 
@@ -233,7 +263,8 @@ export function renderTimeline(timeline) {
   }
   timeline.slice(0, 8).forEach((item) => {
     const when = new Date(item.savedAt).toLocaleString();
-    node.appendChild(textNode("li", `${item.pageHost || "Unknown site"}: ${item.level} (${item.score}/100), ${item.thirdParties} third-party domains, ${item.fingerprinting ? "fingerprinting signaled" : "no fingerprinting signaled"} on ${when}`));
+    const profile = item.siteIntel?.name ? `, profile: ${item.siteIntel.name}` : "";
+    node.appendChild(textNode("li", `${item.pageHost || "Unknown site"}: ${item.level} (${item.score}/100), ${item.thirdParties} third-party domains${profile}, ${item.fingerprinting ? "fingerprinting signaled" : "no fingerprinting signaled"} on ${when}`));
   });
 }
 
@@ -244,6 +275,7 @@ export function buildDsarDraft(report, analysis) {
   const rights = policy?.privacyLabel?.rights || ["Access my data.", "Delete my data.", "Export my data.", "Withdraw optional consent where applicable."];
   const collected = policy?.privacyLabel?.collects?.length ? policy.privacyLabel.collects.join(", ") : "identity, device, usage, and third-party data categories";
   const shared = policy?.privacyLabel?.shares?.length ? policy.privacyLabel.shares.join(", ") : "service providers, analytics vendors, and advertising partners";
+  const controls = policy?.privacyLabel?.controls?.length ? policy.privacyLabel.controls.join(", ") : "training, activity, delete-account, and export controls";
   return [
     `Subject: Data access / deletion request for ${host}`,
     "",
@@ -256,6 +288,7 @@ export function buildDsarDraft(report, analysis) {
     "",
     `Based on the current policy signals, likely data categories include: ${collected}.`,
     `Likely sharing categories include: ${shared}.`,
+    `Important controls to review include: ${controls}.`,
     "",
     "Please confirm any retention periods, third-party recipients, and how to withdraw optional consent.",
     "",
@@ -305,7 +338,55 @@ export function renderAppIntel(app) {
     }[key];
     node.appendChild(textNode("p", `${label}: ${app[key]?.length ? app[key].join(", ") : "none recorded"}`));
   });
+  if (app.controls?.length) {
+    renderControls("appIntel", app.controls);
+  }
+  if (app.retention?.length) {
+    const label = textNode("p", "Retention and persistence", "note");
+    node.appendChild(label);
+    const list = document.createElement("ul");
+    app.retention.slice(0, 5).forEach((item) => {
+      const li = document.createElement("li");
+      li.textContent = `${item.label}: ${item.detail}`;
+      list.appendChild(li);
+    });
+    node.appendChild(list);
+  }
   if (app.summary) node.appendChild(textNode("p", app.summary, "note"));
+}
+
+export function renderSiteIntel(siteIntel) {
+  const node = el("siteIntel");
+  clear(node);
+  if (!siteIntel) {
+    node.appendChild(textNode("p", "Open a site and refresh to build automatic site intelligence from the current host.", "note"));
+    return;
+  }
+  if (!siteIntel.found) {
+    node.appendChild(textNode("p", siteIntel.summary || "No local site profile yet.", "note"));
+    return;
+  }
+  node.appendChild(textNode("p", `${siteIntel.name} - privacy score ${siteIntel.privacyScore}/100`));
+  node.appendChild(textNode("p", siteIntel.platform, "note"));
+  node.appendChild(textNode("p", detailList("Data categories", siteIntel.dataCategories)));
+  node.appendChild(textNode("p", detailList("Typical permissions", siteIntel.permissions)));
+  node.appendChild(textNode("p", detailList("Third parties", siteIntel.thirdParties)));
+  node.appendChild(textNode("p", detailList("Concerns", siteIntel.concerns)));
+  if (siteIntel.controls?.length) {
+    renderControls("siteIntel", siteIntel.controls);
+  }
+  if (siteIntel.retention?.length) {
+    const label = textNode("p", "Retention and persistence", "note");
+    node.appendChild(label);
+    const list = document.createElement("ul");
+    siteIntel.retention.slice(0, 5).forEach((item) => {
+      const li = document.createElement("li");
+      li.textContent = `${item.label}: ${item.detail}`;
+      list.appendChild(li);
+    });
+    node.appendChild(list);
+  }
+  if (siteIntel.summary) node.appendChild(textNode("p", siteIntel.summary, "note"));
 }
 
 export function answerEvidenceQuestion(report, analysis, question) {
@@ -323,6 +404,7 @@ export function answerEvidenceQuestion(report, analysis, question) {
   }
   if (/fingerprint|tracking|tracker/.test(q)) chunks.push(report.plainEnglish.fingerprinting);
   if (analysis?.policy?.privacyLabel) chunks.push(`Policy label: ${analysis.policy.privacyLabel.grade}, with rights that may include ${analysis.policy.privacyLabel.rights.slice(0, 2).join("; ")}.`);
+  if (analysis?.policy?.privacyLabel?.controls?.length) chunks.push(`Policy controls: ${analysis.policy.privacyLabel.controls.slice(0, 3).join(", ")}.`);
   return chunks.join(" ");
 }
 
@@ -374,6 +456,7 @@ export function renderReport(report, analysis) {
   renderLinks(report.content?.policyLinks);
   renderGraph(report, analysis);
   renderPrivacyLabel(report, analysis);
+  renderSiteIntel(report.siteIntel);
   renderFingerprinting(report);
   renderDsar(report, analysis);
   renderEvidenceQA(report, analysis, el("evidenceQuestion").value);

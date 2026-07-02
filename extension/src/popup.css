@@ -136,6 +136,10 @@ article,
   background: var(--high);
 }
 
+.risk.critical .meter span {
+  background: #7c1212;
+}
+
 .risk.medium #riskLevel {
   color: var(--medium);
 }
@@ -146,6 +150,10 @@ article,
 
 .risk.low #riskLevel {
   color: var(--low);
+}
+
+.risk.critical #riskLevel {
+  color: #7c1212;
 }
 
 .grid {

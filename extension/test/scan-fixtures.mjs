@@ -17,11 +17,12 @@ function makeNode(text, attrs = {}) {
     value: attrs.value || "",
     href: attrs.href || "",
     checked: Boolean(attrs.checked),
+    parentElement: attrs.parentElement || null,
     getAttribute(name) {
       return attrs[name] || "";
     },
     closest() {
-      return this;
+      return attrs.closestNode || this;
     },
     getBoundingClientRect() {
       return attrs.rect || { width: 120, height: 36 };
@@ -104,6 +105,54 @@ function runFixture(site) {
   return { page, consent, oauth: oauthResult, fingerprinting };
 }
 
+function runConsentClickCheck() {
+  const document = {
+    title: "Consent test",
+    body: makeNode("cookie preferences and privacy choices"),
+    documentElement: makeNode("cookie preferences and privacy choices"),
+    querySelectorAll() {
+      return [];
+    },
+    querySelector() {
+      return null;
+    }
+  };
+  const context = createContext({
+    window: {},
+    self: {},
+    document,
+    location: { href: "https://consent.test/", hostname: "consent.test" },
+    URL,
+    getComputedStyle() {
+      return { visibility: "visible", display: "block", backgroundColor: "rgb(10, 100, 200)", fontWeight: "700" };
+    }
+  });
+  context.window = context;
+  context.self = context;
+  files.slice(0, 3).forEach((file) => {
+    new Script(readFileSync(new URL(file, root), "utf8"), { filename: file }).runInContext(context);
+  });
+
+  const consentWrapper = makeNode("cookie preferences and privacy choices");
+  const consentOk = makeNode("OK", {
+    parentElement: consentWrapper,
+    rect: { width: 92, height: 34 }
+  });
+  const genericOk = makeNode("OK", {
+    rect: { width: 92, height: 34 }
+  });
+
+  if (!context.ConsentLensConsentScanner.consentClickAllowed(consentOk)) {
+    console.error("Consent click should be allowed inside a consent context.");
+    process.exit(1);
+  }
+
+  if (context.ConsentLensConsentScanner.consentClickAllowed(genericOk)) {
+    console.error("Generic OK button should not be intercepted outside a consent context.");
+    process.exit(1);
+  }
+}
+
 const results = Array.from({ length: 50 }, (_, index) => runFixture(fixture(index + 1)));
 const failures = results
   .map((result, index) => ({ result, index: index + 1 }))
@@ -113,6 +162,7 @@ if (failures.length) {
   console.error(`Fixture scan failed for ${failures.map((item) => item.index).join(", ")}`);
   process.exit(1);
 }
+runConsentClickCheck();
 
 const darkPatterns = results.filter((result) => result.consent.cookieBanner.possibleDarkPattern).length;
 const oauthPages = results.filter((result) => result.oauth.hasOAuthProvider || result.oauth.scopes.length).length;

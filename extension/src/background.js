@@ -22,6 +22,13 @@ function isObject(value) {
   return value !== null && typeof value === "object" && !Array.isArray(value);
 }
 
+function sanitizeText(value, max = 200) {
+  return String(value || "")
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, max);
+}
+
 function validTabId(tabId) {
   return Number.isInteger(tabId) && tabId >= 0;
 }
@@ -49,12 +56,47 @@ function validMessage(message, sender) {
   return true;
 }
 
+function sanitizeReceipt(receipt) {
+  const summary = Array.isArray(receipt.summary)
+    ? receipt.summary.slice(0, 5).map((item) => ({
+        label: sanitizeText(item?.label, 80),
+        detail: sanitizeText(item?.detail, 180)
+      })).filter((item) => item.label || item.detail)
+    : [];
+
+  return {
+    kind: sanitizeText(receipt.kind, 40) || "unknown",
+    pageUrl: sanitizeText(receipt.pageUrl, 500),
+    pageTitle: sanitizeText(receipt.pageTitle, 120),
+    actionLabel: sanitizeText(receipt.actionLabel, 80),
+    acceptedAt: Number.isFinite(Number(receipt.acceptedAt)) ? Number(receipt.acceptedAt) : Date.now(),
+    summary
+  };
+}
+
+function sanitizeSettings(settings) {
+  const next = {};
+  try {
+    const apiBaseUrl = new URL(String(settings.apiBaseUrl || DEFAULT_SETTINGS.apiBaseUrl));
+    if (!["http:", "https:"].includes(apiBaseUrl.protocol)) throw new Error("apiBaseUrl must use http or https");
+    next.apiBaseUrl = apiBaseUrl.toString().replace(/\/+$/, "");
+  } catch (error) {
+    next.apiBaseUrl = DEFAULT_SETTINGS.apiBaseUrl;
+  }
+
+  const region = String(settings.region || DEFAULT_SETTINGS.region).trim().toUpperCase().slice(0, 8);
+  next.region = region || DEFAULT_SETTINGS.region;
+  return next;
+}
+
 function blankState(tabId) {
   return {
     tabId,
     pageUrl: "",
     pageHost: "",
     requests: {},
+    siteIntel: null,
+    siteIntelHost: "",
     contentReport: null,
     updatedAt: Date.now()
   };
@@ -187,7 +229,7 @@ function scoreReport(state) {
   }
 
   const capped = Math.max(0, Math.min(100, Math.round(score)));
-  const level = capped >= 65 ? "High" : capped >= 25 ? "Medium" : "Low";
+  const level = capped >= 85 ? "Critical" : capped >= 65 ? "High" : capped >= 35 ? "Medium" : "Low";
 
   return {
     score: capped,
@@ -230,8 +272,8 @@ function buildPlainEnglish(state) {
 
 function updateBadge(tabId, report) {
   const level = report.risk.level;
-  const text = level === "High" ? "HIGH" : level === "Medium" ? "MED" : "LOW";
-  const color = level === "High" ? "#c93535" : level === "Medium" ? "#b26a00" : "#17895b";
+  const text = level === "Critical" ? "CRIT" : level === "High" ? "HIGH" : level === "Medium" ? "MED" : "LOW";
+  const color = level === "Critical" ? "#7c1212" : level === "High" ? "#c93535" : level === "Medium" ? "#b26a00" : "#17895b";
   chrome.action.setBadgeText({ tabId, text });
   chrome.action.setBadgeBackgroundColor({ tabId, color });
   chrome.action.setTitle({
@@ -307,6 +349,10 @@ function storeActivityTimeline(report, risk) {
         level: risk.level,
         thirdParties: report.thirdParties?.length || 0,
         fingerprinting: Boolean(report.content?.fingerprinting?.detected),
+        siteIntel: report.siteIntel ? {
+          name: sanitizeText(report.siteIntel.name, 80),
+          privacyScore: report.siteIntel.privacyScore
+        } : null,
         savedAt: Date.now()
       };
 
@@ -347,7 +393,8 @@ function buildReport(tabId) {
     risk: scoreReport(state),
     plainEnglish: buildPlainEnglish(state),
     content: state.contentReport,
-    thirdParties: requests
+    thirdParties: requests,
+    siteIntel: state.siteIntel
   };
 }
 
@@ -428,10 +475,35 @@ async function lookupApp(query) {
   return payload.app || null;
 }
 
+async function refreshSiteIntel(state) {
+  const host = state.pageHost || safeHost(state.pageUrl || "");
+  if (!host) {
+    state.siteIntel = null;
+    state.siteIntelHost = "";
+    return null;
+  }
+
+  if (state.siteIntelHost === host && state.siteIntel) {
+    return state.siteIntel;
+  }
+
+  try {
+    const app = await lookupApp(host);
+    state.siteIntel = app;
+    state.siteIntelHost = host;
+    return app;
+  } catch (error) {
+    logError("site-intel", error, { host });
+    state.siteIntel = null;
+    state.siteIntelHost = host;
+    return null;
+  }
+}
+
 function storeReceipt(receipt) {
   chrome.storage.local.get({ consentReceipts: [] }, (result) => {
     const receipts = Array.isArray(result.consentReceipts) ? result.consentReceipts : [];
-    const next = [receipt, ...receipts].slice(0, 50);
+    const next = [sanitizeReceipt(receipt), ...receipts].slice(0, 50);
     chrome.storage.local.set({ consentReceipts: next });
   });
 }
@@ -447,10 +519,7 @@ chrome.webRequest.onBeforeRequest.addListener(
 
 chrome.runtime.onInstalled.addListener(() => {
   chrome.storage.local.get(DEFAULT_SETTINGS, (result) => {
-    chrome.storage.local.set({
-      apiBaseUrl: result.apiBaseUrl || DEFAULT_SETTINGS.apiBaseUrl,
-      region: result.region || DEFAULT_SETTINGS.region
-    });
+    chrome.storage.local.set(sanitizeSettings(result));
   });
 });
 
@@ -480,10 +549,12 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     state.pageUrl = message.report.pageUrl || state.pageUrl;
     state.pageHost = safeHost(message.report.pageUrl || state.pageUrl);
     state.updatedAt = Date.now();
-    const report = buildReport(sender.tab.id);
-    updateBadge(sender.tab.id, report);
-    storeActivityTimeline(report, report.risk);
-    sendResponse({ ok: true });
+    refreshSiteIntel(state).finally(() => {
+      const report = buildReport(sender.tab.id);
+      updateBadge(sender.tab.id, report);
+      storeActivityTimeline(report, report.risk);
+      sendResponse({ ok: true });
+    });
     return true;
   }
 
@@ -519,10 +590,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   }
 
   if (message?.type === "CONSENTLENS_SET_SETTINGS") {
-    setSettings({
-      apiBaseUrl: String(message.settings?.apiBaseUrl || DEFAULT_SETTINGS.apiBaseUrl).replace(/\/+$/, ""),
-      region: String(message.settings?.region || DEFAULT_SETTINGS.region).toUpperCase()
-    }).then(() => sendResponse({ ok: true }));
+    setSettings(sanitizeSettings(message.settings || {})).then(() => sendResponse({ ok: true }));
     return true;
   }
 
