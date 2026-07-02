@@ -66,6 +66,52 @@ function plainEnglish(signals) {
   return summary;
 }
 
+function isPrivateHost(hostname) {
+  const host = String(hostname || "").toLowerCase();
+  if (!host) return true;
+  if (host === "localhost" || host.endsWith(".localhost") || host.endsWith(".local")) return true;
+  if (host === "::1" || host === "0.0.0.0") return true;
+  if (/^\d+\.\d+\.\d+\.\d+$/.test(host)) {
+    const [a, b] = host.split(".").map(Number);
+    if (a === 10) return true;
+    if (a === 127) return true;
+    if (a === 192 && b === 168) return true;
+    if (a === 172 && b >= 16 && b <= 31) return true;
+    if (a === 169 && b === 254) return true;
+  }
+  return false;
+}
+
+async function fetchPolicyDocument(initialUrl) {
+  let currentUrl = new URL(initialUrl);
+
+  for (let redirects = 0; redirects < 5; redirects += 1) {
+    if (isPrivateHost(currentUrl.hostname)) {
+      throw new Error("Policy URLs on local or private network hosts are not allowed");
+    }
+
+    const response = await fetch(currentUrl.href, {
+      headers: {
+        "User-Agent": "ConsentLens/0.1 policy analyzer"
+      },
+      redirect: "manual"
+    });
+
+    if (response.status >= 300 && response.status < 400) {
+      const location = response.headers.get("location");
+      if (!location) {
+        throw new Error(`Policy fetch redirected without a location header (${response.status})`);
+      }
+      currentUrl = new URL(location, currentUrl);
+      continue;
+    }
+
+    return { response, finalUrl: currentUrl.href };
+  }
+
+  throw new Error("Policy fetch redirected too many times");
+}
+
 function privacyLabel(signals, region) {
   const ids = new Set(signals.map((signal) => signal.id));
   let grade = "A";
@@ -91,12 +137,11 @@ export async function analyzePolicyFromUrl({ policyUrl, pageUrl, region }) {
   if (!["http:", "https:"].includes(parsed.protocol)) {
     throw new Error("Only http and https policy URLs are supported");
   }
+  if (isPrivateHost(parsed.hostname)) {
+    throw new Error("Policy URLs on local or private network hosts are not allowed");
+  }
 
-  const response = await fetch(parsed.href, {
-    headers: {
-      "User-Agent": "ConsentLens/0.1 policy analyzer"
-    }
-  });
+  const { response, finalUrl } = await fetchPolicyDocument(parsed.href);
 
   if (!response.ok) {
     throw new Error(`Policy fetch failed with ${response.status}`);
@@ -109,6 +154,7 @@ export async function analyzePolicyFromUrl({ policyUrl, pageUrl, region }) {
 
   return {
     policyUrl: parsed.href,
+    resolvedUrl: finalUrl,
     pageUrl: pageUrl || "",
     fetchedAt: Date.now(),
     risk,

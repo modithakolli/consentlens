@@ -1,4 +1,6 @@
 (function attachConsentScanner(globalScope) {
+  const CONSENT_CONTEXT_TERMS = /cookie|consent|privacy|tracking|third-party|third party|marketing|advertising|personal data|preferences|manage settings|manage choices|reject all|accept all|opt in|opt out|gdpr|ccpa|cpra|dpdp/i;
+
   function findConsentText() {
     const candidates = Array.from(document.querySelectorAll(
       "[id*='cookie' i], [class*='cookie' i], [id*='consent' i], [class*='consent' i], [id*='onetrust' i], [class*='onetrust' i], [role='dialog'], dialog"
@@ -10,6 +12,22 @@
       .sort((a, b) => b.length - a.length);
 
     return (consentCandidates[0] || "").slice(0, 12000);
+  }
+
+  function closestConsentContext(control) {
+    let node = control;
+    for (let depth = 0; node && depth < 4; depth += 1, node = node.parentElement) {
+      const text = ConsentLensPageScanner.nodeText(node);
+      if (CONSENT_CONTEXT_TERMS.test(text)) {
+        return text;
+      }
+    }
+    return "";
+  }
+
+  function hasConsentContext(control, label) {
+    const text = `${label || ""} ${closestConsentContext(control)}`.trim();
+    return CONSENT_CONTEXT_TERMS.test(text);
   }
 
   function signalText(fullText, consentText) {
@@ -176,8 +194,24 @@
     };
   }
 
+  function consentClickAllowed(control) {
+    const label = (
+      control?.innerText ||
+      control?.value ||
+      control?.getAttribute("aria-label") ||
+      control?.getAttribute("title") ||
+      ""
+    ).replace(/\s+/g, " ").trim();
+
+    if (!label || label.length > 80) return false;
+    const isConsentLabel = /^(accept all|allow all|accept cookies|accept privacy settings|accept tracking|allow cookies|agree|i agree|yes, i agree|ok|okay|got it)$/i.test(label);
+    if (!isConsentLabel) return false;
+    return hasConsentContext(control, label);
+  }
+
   globalScope.ConsentLensConsentScanner = {
     scan,
-    buildSummary
+    buildSummary,
+    consentClickAllowed
   };
 })(window);

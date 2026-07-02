@@ -53,3 +53,5 @@ The policy analyzer returns:
 The extension should only call the backend when the user asks for deeper policy analysis. The backend receives the policy URL and active-site context, not the user's full browsing history.
 
 For production, keep `ALLOWED_ORIGINS` tight and point the extension at the deployed API through the popup settings page instead of hardcoding URLs in the extension bundle.
+
+Policy analysis rejects localhost and private-network policy URLs so a hostile page cannot use the backend as an internal-network fetch proxy.
