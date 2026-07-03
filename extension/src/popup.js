@@ -356,19 +356,29 @@ function renderThirdParties(thirdParties) {
   });
 }
 
-function renderLinks(links) {
+function renderLinks(links, inferredLinks = []) {
   const node = el("policyLinks");
   node.innerHTML = "";
 
-  if (!links?.length) {
+  const explicit = Array.isArray(links) ? links : [];
+  const inferred = Array.isArray(inferredLinks) ? inferredLinks : [];
+
+  if (!explicit.length && !inferred.length) {
     const li = document.createElement("li");
     li.className = "note";
-    li.textContent = "No obvious privacy, terms, cookie, or legal links found.";
+    li.textContent = "We couldn't find a privacy policy linked from this page. It may be tucked away elsewhere on the site.";
     node.appendChild(li);
     return;
   }
 
-  links.slice(0, 8).forEach((link) => {
+  if (!explicit.length && inferred.length) {
+    const li = document.createElement("li");
+    li.className = "note";
+    li.textContent = "No explicit policy link was visible, so I tried a few likely policy pages for this site.";
+    node.appendChild(li);
+  }
+
+  [...explicit, ...inferred].slice(0, 8).forEach((link) => {
     const li = document.createElement("li");
     const a = document.createElement("a");
     a.href = link.href;
@@ -376,6 +386,12 @@ function renderLinks(links) {
     a.rel = "noreferrer";
     a.textContent = link.text || link.href;
     li.appendChild(a);
+    if (link.inferred) {
+      const note = document.createElement("p");
+      note.className = "note";
+      note.textContent = "Likely policy page";
+      li.appendChild(note);
+    }
     node.appendChild(li);
   });
 }
@@ -593,8 +609,12 @@ function renderSiteIntelligence(report) {
   const node = el("siteIntelligence");
   node.innerHTML = "";
   const mergedIntel = (report.thirdParties || []).map(resolvePartyIntel);
+  const companyList = Array.from(new Set(
+    mergedIntel
+      .map((item) => item.company || item.host)
+      .filter(Boolean)
+  )).slice(0, 4);
   const known = mergedIntel.filter((item) => item.known).length;
-  const companies = Array.from(new Set(mergedIntel.filter((item) => item.known).map((item) => item.company))).slice(0, 3);
   const companyCounts = new Map();
   mergedIntel.filter((item) => item.known).forEach((item) => {
     companyCounts.set(item.company, (companyCounts.get(item.company) || 0) + 1);
@@ -604,10 +624,9 @@ function renderSiteIntelligence(report) {
   const topCategory = Array.from(categories.entries()).sort((a, b) => b[1] - a[1])[0];
   const topCompany = Array.from(companyCounts.entries()).sort((a, b) => b[1] - a[1])[0];
   node.append(
-    labelItem("Current site", report.pageHost || "Unknown", "active tab"),
-    labelItem("Recognized companies", String(known), companies.length ? companies.join(", ") : "No company match yet"),
+    labelItem("Website", report.pageHost || "Unknown", "active tab"),
+    labelItem("Companies involved", companyList.length ? companyList.join(", ") : "No company match yet", known ? `${known} known mappings` : "Inferred from current scan"),
     labelItem("Main service type", topCategory ? friendlyCategory(topCategory[0]) : "Unknown", topCategory ? `${topCategory[1]} domain${topCategory[1] === 1 ? "" : "s"}` : "No category yet"),
-    labelItem("Top company", topCompany ? topCompany[0] : "Unknown", topCompany ? `${topCompany[1]} domain${topCompany[1] === 1 ? "" : "s"} seen here` : "We need more examples"),
     labelItem("Recommended action", report.risk.level === "High" ? "Review before accepting" : "Keep monitoring", report.risk.level === "High" ? "High risk" : `${report.risk.level} risk`)
   );
 }
@@ -1055,7 +1074,7 @@ async function refresh() {
     renderOAuth(report.content?.oauth);
     renderStats(report.risk);
     renderThirdParties(report.thirdParties);
-    renderLinks(report.content?.policyLinks);
+    renderLinks(report.content?.policyLinks, report.content?.inferredPolicyLinks);
     renderGraph(report, null);
     renderPrivacyLabel(report, null);
     renderSiteIntelligence(report);

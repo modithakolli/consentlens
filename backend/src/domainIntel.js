@@ -44,7 +44,7 @@ const SHARED_RULES = loadSharedTrackerRules();
 
 const COMPANY_RULES = [
   { company: "Google", purpose: "Analytics, ads, identity, measurement", hq: "United States", reputation: "High data collection footprint", domains: ["google.com", "googleapis.com", "clients6.google.com", "gstatic.com", "fonts.googleapis.com", "fonts.gstatic.com", "translate.google.com", "google.co.in", "apis.google.com", "play.google.com", "mail.google.com", "drive.google.com", "meet.google.com", "chat.google.com", "ssl.gstatic.com", "lh3.google.com", "ogs.google.com", "googleusercontent.com"] },
-  { company: "OpenAI", purpose: "AI products, chat, and API services", hq: "United States", reputation: "AI platform provider", domains: ["openai.com", "chatgpt.com", "oaistatic.com", "openaiassets.com", "images.ctfassets.net"] },
+  { company: "OpenAI", purpose: "AI products, chat, and API services", hq: "United States", reputation: "AI platform provider", domains: ["openai.com", "chatgpt.com", "oaistatic.com", "auth.openai.com", "auth-cdn.oaistatic.com", "api.oaistatsig.com", "openaiassets.com", "images.ctfassets.net"] },
   { company: "Meta Platforms", purpose: "Advertising and social tracking", hq: "United States", reputation: "High tracking footprint", domains: ["facebook.com", "connect.facebook.net", "instagram.com"] },
   { company: "Microsoft", purpose: "Identity, ads, productivity services", hq: "United States", reputation: "Broad ecosystem services", domains: ["microsoft.com", "login.microsoftonline.com", "login.live.com", "bing.com", "bat.bing.com", "bat.bing.net", "clarity.ms", "scripts.clarity.ms", "e.clarity.ms", "y.clarity.ms", "msn.com", "office.com", "azure.com"] },
   { company: "Adobe", purpose: "Tag management, analytics, marketing", hq: "United States", reputation: "Common marketing tracker stack", domains: ["adobedtm.com", "assets.adobedtm.com", "adoberesources.net", "omtrdc.net", "demdex.net"] },
@@ -60,6 +60,7 @@ const COMPANY_RULES = [
   { company: "LiveRamp", purpose: "Identity resolution and advertising matching", hq: "United States", reputation: "Advertising identity graph provider", domains: ["rlcdn.com"] },
   { company: "Krux/Salesforce", purpose: "Data management and ad audience matching", hq: "United States", reputation: "Advertising data platform", domains: ["krxd.net"] },
   { company: "Akamai", purpose: "Security, bot detection, and delivery", hq: "United States", reputation: "Infrastructure and anti-abuse provider", domains: ["akamaihd.net", "go-mpulse.net", "akstat.io"] },
+  { company: "Datadog", purpose: "Telemetry, monitoring, and analytics", hq: "United States", reputation: "Monitoring and observability platform", domains: ["datadoghq.com", "browser-intake-datadoghq.com"] },
   { company: "Amazon Web Services", purpose: "Cloud hosting and storage", hq: "United States", reputation: "Cloud infrastructure provider", domains: ["amazonaws.com", "cloudfront.net"] },
   { company: "Phenom", purpose: "Recruiting platform and candidate analytics", hq: "United States", reputation: "Hiring experience platform", domains: ["phenompeople.com"] },
   { company: "Zift Solutions", purpose: "Partner marketing analytics", hq: "United States", reputation: "Channel marketing provider", domains: ["ziftsolutions.com"] },

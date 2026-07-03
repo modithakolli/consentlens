@@ -319,6 +319,9 @@ async function handle(request, response) {
     const policyUrl = stringValue(body.policyUrl);
     const pageUrl = stringValue(body.pageUrl);
     const region = normalizeRegion(body.region);
+    const policyCandidates = Array.isArray(body.policyCandidates)
+      ? Array.from(new Set(body.policyCandidates.map((value) => stringValue(value)).filter(Boolean)))
+      : [];
 
     if (!policyUrl) {
       sendJson(response, 400, { ok: false, error: "policyUrl is required" }, origin || "*");
@@ -340,15 +343,35 @@ async function handle(request, response) {
       return;
     }
 
-    const analysis = await analyzePolicyFromUrl({
-      policyUrl: parsedPolicyUrl.href,
-      pageUrl: parsedPageUrl,
-      region
-    });
+    const attempts = [parsedPolicyUrl.href, ...policyCandidates.filter((candidate) => candidate !== parsedPolicyUrl.href)];
+    const errors = [];
+    let analysis = null;
+
+    for (const candidate of attempts.slice(0, 6)) {
+      try {
+        analysis = await analyzePolicyFromUrl({
+          policyUrl: validateHttpUrl(candidate, "policyUrl").href,
+          pageUrl: parsedPageUrl,
+          region
+        });
+        break;
+      } catch (error) {
+        errors.push(error.message || "Policy fetch failed");
+      }
+    }
+
+    if (!analysis) {
+      sendJson(response, 422, {
+        ok: false,
+        error: `I could not fetch a policy page. ${errors[0] || "No usable policy link responded."}`
+      }, origin || "*");
+      return;
+    }
 
     sendJson(response, 200, {
       ok: true,
-      analysis
+      analysis,
+      attempts: attempts.slice(0, 6)
     }, origin || "*");
     return;
   }

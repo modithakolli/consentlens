@@ -51,6 +51,28 @@
       .slice(0, 12);
   }
 
+  function inferPolicyLinks() {
+    const baseUrl = new URL(location.href);
+    const candidates = [
+      ["Privacy policy", "/privacy-policy"],
+      ["Privacy policy", "/privacy"],
+      ["Privacy notice", "/privacy-notice"],
+      ["Privacy statement", "/privacy-statement"],
+      ["Cookie policy", "/cookie-policy"],
+      ["Cookies policy", "/cookies-policy"],
+      ["Terms of use", "/terms-of-use"],
+      ["Terms and conditions", "/terms-and-conditions"],
+      ["Legal", "/legal/privacy"],
+      ["Data protection", "/data-protection"]
+    ];
+
+    return candidates.map(([text, path]) => ({
+      text: `${text} (inferred)`,
+      href: new URL(path, baseUrl.origin).href,
+      inferred: true
+    }));
+  }
+
   function visibleDomainClues() {
     const domains = new Set();
     document.querySelectorAll("script[src], iframe[src], img[src], link[href]").forEach((node) => {
@@ -70,10 +92,12 @@
   }
 
   function scan() {
+    const policyLinks = findPolicyLinks();
     return {
       fullText: pageText(),
       nodeText,
-      policyLinks: findPolicyLinks(),
+      policyLinks,
+      inferredPolicyLinks: policyLinks.length ? [] : inferPolicyLinks(),
       visibleThirdPartyHints: visibleDomainClues()
     };
   }

@@ -54,7 +54,8 @@
     "domains": [
       "gstatic.com",
       "fonts.gstatic.com",
-      "translate.google.com"
+      "translate.google.com",
+      "translate.googleapis.com"
     ]
   },
   {
@@ -113,6 +114,18 @@
       "scripts.clarity.ms",
       "bat.bing.com",
       "web.vortex.data.microsoft.com"
+    ]
+  },
+  {
+    "company": "Datadog",
+    "category": "analytics",
+    "risk": "medium",
+    "purpose": "Telemetry, monitoring, and analytics",
+    "hq": "United States",
+    "reputation": "Monitoring and observability platform",
+    "domains": [
+      "datadoghq.com",
+      "browser-intake-datadoghq.com"
     ]
   },
   {

@@ -9,6 +9,12 @@ cd backend
 node server.js
 ```
 
+From the repo root, this also works:
+
+```powershell
+node backend/server.js
+```
+
 Default URL:
 
 ```text

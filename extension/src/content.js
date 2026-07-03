@@ -15,6 +15,7 @@
       pageTitle: document.title,
       scannedAt: Date.now(),
       policyLinks: page.policyLinks,
+      inferredPolicyLinks: page.inferredPolicyLinks || [],
       cookieBanner: consent.cookieBanner,
       oauth,
       policySignals: {

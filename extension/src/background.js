@@ -472,23 +472,37 @@ function buildReport(tabId) {
 }
 
 function bestPolicyLink(report) {
-  const links = report.content?.policyLinks || [];
+  const links = [
+    ...(report.content?.policyLinks || []),
+    ...(report.content?.inferredPolicyLinks || [])
+  ];
   return links.find((link) => /privacy/i.test(link.text + " " + link.href))
     || links.find((link) => /cookie/i.test(link.text + " " + link.href))
     || links[0]
     || null;
 }
 
+function policyCandidates(report) {
+  const links = [
+    ...(report.content?.policyLinks || []),
+    ...(report.content?.inferredPolicyLinks || [])
+  ];
+  return Array.from(new Map(
+    links.map((link) => [link.href, link])
+  ).values());
+}
+
 async function analyzeCurrentPolicy(tabId, region = "IN") {
   const settings = await getSettings();
   const report = buildReport(tabId);
   const policy = bestPolicyLink(report);
+  const candidates = policyCandidates(report);
 
   if (!policy?.href) {
     return {
       policy: null,
       domainIntel: [],
-      error: "No privacy or cookie policy link was detected on this page."
+      error: "We could not find a linked privacy policy on this page. I also checked a few common policy paths, but nothing responded."
     };
   }
 
@@ -498,7 +512,8 @@ async function analyzeCurrentPolicy(tabId, region = "IN") {
     body: JSON.stringify({
       policyUrl: policy.href,
       pageUrl: report.pageUrl,
-      region: region || settings.region
+      region: region || settings.region,
+      policyCandidates: candidates.slice(0, 6).map((item) => item.href)
     })
   });
 
