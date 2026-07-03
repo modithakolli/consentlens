@@ -34,6 +34,203 @@ function tag(category) {
   return span;
 }
 
+function stripWording(text) {
+  return String(text || "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function displayHost(value) {
+  try {
+    return new URL(value).hostname.replace(/^www\./, "");
+  } catch (error) {
+    return stripWording(value) || "Current tab";
+  }
+}
+
+function friendlyReason(reason) {
+  const text = stripWording(reason);
+  if (!text) return "Something worth a second look";
+  if (/cookie banner/i.test(text) && /reject|accept/i.test(text)) return "Cookie choices favor Accept";
+  if (/third-party partners?/i.test(text) || /third-party domains?/i.test(text)) return "Outside companies are involved";
+  if (/fingerprinting|device identification/i.test(text)) return "Possible device fingerprinting";
+  if (/oauth/i.test(text) && /scope|access/i.test(text)) return "Account access requested";
+  if (/advertising, sale, sharing, or resale/i.test(text) || /sharing.*advertisers?/i.test(text)) return "Sharing or sale risk";
+  if (/ai|model training|automated decisions?/i.test(text)) return "AI or automated processing";
+  if (/data collection/i.test(text)) return "Broad data collection";
+  if (/retention/i.test(text)) return "Retention is unclear";
+  return text.length > 38 ? `${text.slice(0, 35)}...` : text;
+}
+
+function friendlyCategory(category) {
+  const value = String(category || "unknown");
+  if (value === "analytics") return "Analytics";
+  if (value === "ads") return "Advertising";
+  if (value === "identity") return "Sign-in / identity";
+  if (value === "consent") return "Consent tools";
+  if (value === "support") return "Support tools";
+  if (value === "risk") return "Risk / fingerprinting";
+  return value === "unknown" ? "Unknown" : value.charAt(0).toUpperCase() + value.slice(1);
+}
+
+function renderChips(target, values, className = "chipButton") {
+  const node = el(target);
+  node.innerHTML = "";
+  const items = values?.length ? values : ["None"];
+  items.slice(0, 4).forEach((value) => {
+    const chip = document.createElement("span");
+    chip.className = className;
+    chip.textContent = value;
+    node.appendChild(chip);
+  });
+}
+
+function buildDecisionSummary(report, analysis) {
+  const score = report?.risk?.score ?? 0;
+  const level = String(report?.risk?.level || "Low");
+  const hasOAuth = Boolean(report?.content?.oauth?.hasOAuthProvider || report?.content?.oauth?.scopes?.length);
+  const fingerprinting = Boolean(report?.content?.fingerprinting?.detected);
+  const policy = analysis?.policy || null;
+  const reasons = Array.isArray(report?.risk?.reasons) ? report.risk.reasons : [];
+
+  let verdict = "Probably okay";
+  let text = "I did not see strong warning signs in the current scan.";
+
+  if (level === "High" || score >= 65) {
+    verdict = "Yes, pause and review";
+    text = "This page uses enough tracking or access requests that I would slow down before accepting.";
+  } else if (level === "Medium" || score >= 30) {
+    verdict = "Use caution";
+    text = "Nothing looks catastrophic, but there are a few tracking or sharing signals worth a closer look.";
+  }
+
+  if (hasOAuth) {
+    text = report?.content?.oauth?.purposeMismatch?.detected
+      ? "It asks for account access, and the request may be broader than the app's purpose."
+      : "It asks to connect an account, so review the permissions before continuing.";
+  } else if (!fingerprinting) {
+    text = `${text} Good news: it did not ask for your Google, Microsoft, or GitHub account.`;
+  }
+
+  if (fingerprinting) {
+    text = `${text} We also saw signs of device identification.`;
+  }
+
+  if (policy?.privacyLabel?.retention && !/not stated/i.test(policy.privacyLabel.retention)) {
+    text = `${text} The policy suggests data may be kept for ${policy.privacyLabel.retention}.`;
+  }
+
+  const risks = [];
+  reasons.map(friendlyReason).forEach((reason) => {
+    if (!risks.includes(reason)) risks.push(reason);
+  });
+  if ((report?.thirdParties || []).length) {
+    risks.unshift(`${report.thirdParties.length} outside services`);
+  }
+  if (hasOAuth) {
+    risks.push("Account access requested");
+  }
+  if (fingerprinting) {
+    risks.push("Possible device fingerprinting");
+  }
+  if (policy?.privacyLabel?.shares?.length) {
+    risks.push("Sharing mentioned in policy");
+  }
+
+  const actions = level === "High"
+    ? ["Review cookie settings", "Read the policy", "Pause before signing in"]
+    : level === "Medium"
+      ? ["Skim the policy", "Check sharing controls", "Continue if comfortable"]
+      : ["Looks okay", "Open the policy if curious", "Keep an eye on it"];
+
+  return {
+    verdict,
+    text,
+    risks: risks.slice(0, 4),
+    actions: actions.slice(0, 3)
+  };
+}
+
+function renderDecisionSummary(report, analysis) {
+  const node = el("decisionSummary");
+  if (!node || !report) return;
+  node.classList.remove("low", "medium", "high");
+  node.classList.add(String(report.risk?.level || "low").toLowerCase());
+
+  const summary = buildDecisionSummary(report, analysis);
+  el("decisionVerdict").textContent = summary.verdict;
+  el("decisionText").textContent = summary.text;
+  renderChips("decisionRisks", summary.risks);
+  renderChips("decisionActions", summary.actions);
+}
+
+function buildPlainEnglishLines(report, analysis) {
+  if (!report) {
+    return ["Refresh the page to build a readable summary."];
+  }
+
+  const lines = [];
+  const thirdParties = Array.isArray(report.thirdParties) ? report.thirdParties.length : 0;
+  const categoryCounts = new Map();
+  (report.thirdParties || []).forEach((party) => {
+    const categories = party.categories?.length ? party.categories : ["unknown"];
+    categories.forEach((category) => {
+      categoryCounts.set(category, (categoryCounts.get(category) || 0) + 1);
+    });
+  });
+
+  if (thirdParties) {
+    const groups = [];
+    const analytics = categoryCounts.get("analytics");
+    const ads = categoryCounts.get("ads");
+    const identity = categoryCounts.get("identity");
+    const consent = categoryCounts.get("consent");
+    if (analytics) groups.push(`${analytics} analytics service${analytics > 1 ? "s" : ""}`);
+    if (ads) groups.push(`${ads} advertising service${ads > 1 ? "s" : ""}`);
+    if (identity) groups.push(`${identity} sign-in service${identity > 1 ? "s" : ""}`);
+    if (consent) groups.push(`${consent} consent tool${consent > 1 ? "s" : ""}`);
+    lines.push(
+      groups.length
+        ? `This page talked to ${thirdParties} outside companies. Some help with ${groups.join(", ")}.`
+        : `This page talked to ${thirdParties} outside companies.`
+    );
+  } else {
+    lines.push("We did not see outside companies on this scan.");
+  }
+
+  if (report.risk?.reasons?.some((reason) => /cookie banner/i.test(reason))) {
+    lines.push("The cookie prompt looks a bit one-sided, with Accept easier to find than Reject.");
+  }
+
+  if (report.content?.oauth?.hasOAuthProvider || report.content?.oauth?.scopes?.length) {
+    lines.push(
+      report.content?.oauth?.purposeMismatch?.detected
+        ? "It asks for account access, and the request may be broader than the app's purpose."
+        : "It asks for account access, so review the permissions before continuing."
+    );
+  } else {
+    lines.push("Good news: it did not ask for your Google, Microsoft, or GitHub account.");
+  }
+
+  if (report.content?.fingerprinting?.detected) {
+    lines.push("We saw signs of device identification without cookies.");
+  } else {
+    lines.push("We did not detect advanced tracking like browser fingerprinting.");
+  }
+
+  if (analysis?.policy?.privacyLabel?.retention && !/not stated/i.test(analysis.policy.privacyLabel.retention)) {
+    lines.push(`The policy suggests data may be kept for ${analysis.policy.privacyLabel.retention}.`);
+  } else if (analysis?.policy?.privacyLabel) {
+    lines.push("The policy still leaves some questions open, like retention.");
+  }
+
+  return lines.slice(0, 4);
+}
+
+function renderPlainEnglish(report, analysis) {
+  paragraph("plainEnglish", buildPlainEnglishLines(report, analysis));
+}
+
 function renderOAuth(oauth) {
   const node = el("oauth");
   node.innerHTML = "";
@@ -41,14 +238,14 @@ function renderOAuth(oauth) {
   if (!oauth?.hasOAuthProvider && !oauth?.buttons?.length && !oauth?.scopes?.length) {
     const note = document.createElement("p");
     note.className = "note";
-    note.textContent = "No OAuth consent flow was visible on this page.";
+    note.textContent = "Good news: this page did not ask to access your Google, Microsoft, or GitHub account.";
     node.appendChild(note);
     return;
   }
 
   if (oauth.provider || oauth.appName) {
     const p = document.createElement("p");
-    p.textContent = `${oauth.provider || "OAuth"} consent${oauth.appName ? ` for ${oauth.appName}` : ""}. Access level: ${oauth.accessLevel || "Unknown"}.`;
+    p.textContent = `We saw a ${oauth.provider || "sign-in"} request${oauth.appName ? ` for ${oauth.appName}` : ""}. Access level: ${oauth.accessLevel || "Unknown"}.`;
     node.appendChild(p);
   }
 
@@ -284,7 +481,7 @@ function renderPolicyIntelligence(analysis) {
   if (!analysis) {
     const p = document.createElement("p");
     p.className = "note";
-    p.textContent = "Run policy analysis to fetch the linked policy, summarize key clauses, and show relevant privacy rights.";
+    p.textContent = "Use Analyze policy to fetch the linked policy, summarize key clauses, and show relevant privacy rights.";
     node.appendChild(p);
     return;
   }
@@ -383,12 +580,12 @@ function renderPrivacyLabel(report, analysis) {
   }
 
   node.append(
-    labelItem("Privacy grade", "Pending", "click Analyze"),
-    labelItem("Data collected", report.plainEnglish.dataCollected.slice(0, 2).join(", "), "visible page signal"),
-    labelItem("Shared with", report.plainEnglish.sharedWith.slice(0, 2).join(", "), "visible page signal"),
+    labelItem("Privacy grade", "Pending", "click Build label"),
+    labelItem("Data collected", report.plainEnglish.dataCollected.slice(0, 2).join(", "), "from the page"),
+    labelItem("Shared with", report.plainEnglish.sharedWith.slice(0, 2).join(", "), "from the page"),
     labelItem("Third parties", String(report.thirdParties?.length || 0), "network and page hints"),
-    labelItem("AI training", "Unknown", "policy analysis needed"),
-    labelItem("Retention", "Unknown", "policy analysis needed")
+    labelItem("AI training", "Unknown", "needs policy analysis"),
+    labelItem("Retention", "Unknown", "needs policy analysis")
   );
 }
 
@@ -408,10 +605,10 @@ function renderSiteIntelligence(report) {
   const topCompany = Array.from(companyCounts.entries()).sort((a, b) => b[1] - a[1])[0];
   node.append(
     labelItem("Current site", report.pageHost || "Unknown", "active tab"),
-    labelItem("Known companies", String(known), companies.length ? companies.join(", ") : "more rules needed"),
-    labelItem("Dominant purpose", topCategory ? topCategory[0] : "unknown", topCategory ? topCategory[1] + " domains" : "no category yet"),
-    labelItem("Top company", topCompany ? topCompany[0] : "unknown", topCompany ? `${topCompany[1]} domains in the current flow` : "waiting on richer rules"),
-    labelItem("Recommended action", report.risk.level === "High" ? "Review before accepting" : "Keep monitoring", report.risk.level + " risk")
+    labelItem("Recognized companies", String(known), companies.length ? companies.join(", ") : "No company match yet"),
+    labelItem("Main service type", topCategory ? friendlyCategory(topCategory[0]) : "Unknown", topCategory ? `${topCategory[1]} domain${topCategory[1] === 1 ? "" : "s"}` : "No category yet"),
+    labelItem("Top company", topCompany ? topCompany[0] : "Unknown", topCompany ? `${topCompany[1]} domain${topCompany[1] === 1 ? "" : "s"} seen here` : "We need more examples"),
+    labelItem("Recommended action", report.risk.level === "High" ? "Review before accepting" : "Keep monitoring", report.risk.level === "High" ? "High risk" : `${report.risk.level} risk`)
   );
 }
 
@@ -755,6 +952,13 @@ async function loadMemory() {
   }
 }
 
+function setRefreshBusy(isBusy) {
+  const button = el("refresh");
+  if (!button) return;
+  button.disabled = Boolean(isBusy);
+  button.textContent = isBusy ? "Refreshing..." : "Refresh";
+}
+
 async function getActiveTab() {
   const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
   return tab;
@@ -815,62 +1019,63 @@ async function refresh() {
   const tab = await getActiveTab();
   if (!tab?.id) return;
 
-  el("host").textContent = tab.url || "Current tab";
-  const previousUpdatedAt = currentReport?.updatedAt || 0;
-  await scanActiveTab(tab.id);
-  const report = await waitForFreshReport(tab.id, previousUpdatedAt);
-  if (!report) {
-    paragraph("plainEnglish", ["Unable to read this tab yet. Try refreshing once more after the page finishes loading."]);
-    return;
-  }
-  currentReport = report;
-  currentAnalysis = null;
-  const levelClass = report.risk.level.toLowerCase();
-  const riskCard = el("riskCard");
-  riskCard.className = `risk ${levelClass}`;
-  el("riskLevel").textContent = report.risk.level;
-  el("riskScore").textContent = `${report.risk.score}/100`;
-  el("riskMeter").style.width = `${report.risk.score}%`;
-
-  paragraph("plainEnglish", [
-    `Trackers: ${report.plainEnglish.trackers}`,
-    `OAuth: ${report.plainEnglish.oauth}`,
-    ...(report.risk.reasons.length ? report.risk.reasons : ["No major red flags from the available page signals."])
-  ]);
-
-  list("dataCollected", report.plainEnglish.dataCollected, "No clear data collection signal found.");
-  list("sharedWith", report.plainEnglish.sharedWith, "No clear sharing signal found.");
+  setRefreshBusy(true);
   try {
-    const domainResponse = await chrome.runtime.sendMessage({
-      type: "CONSENTLENS_GET_DOMAIN_INTEL",
-      tabId: tab.id
+    el("host").textContent = displayHost(tab.url || "Current tab");
+    const previousUpdatedAt = currentReport?.updatedAt || 0;
+    await scanActiveTab(tab.id);
+    const report = await waitForFreshReport(tab.id, previousUpdatedAt);
+    if (!report) {
+      paragraph("plainEnglish", ["Unable to read this tab yet. Try refreshing once more after the page finishes loading."]);
+      return;
+    }
+    currentReport = report;
+    currentAnalysis = null;
+    const levelClass = report.risk.level.toLowerCase();
+    const riskCard = el("riskCard");
+    riskCard.className = `risk ${levelClass}`;
+    el("riskLevel").textContent = report.risk.level;
+    el("riskScore").textContent = `${report.risk.score}/100`;
+    el("riskMeter").style.width = `${report.risk.score}%`;
+
+    renderPlainEnglish(report, null);
+    renderDecisionSummary(report, null);
+    list("dataCollected", report.plainEnglish.dataCollected, "No clear data collection signal found.");
+    list("sharedWith", report.plainEnglish.sharedWith, "No clear sharing signal found.");
+    try {
+      const domainResponse = await chrome.runtime.sendMessage({
+        type: "CONSENTLENS_GET_DOMAIN_INTEL",
+        tabId: tab.id
+      });
+      currentDomainIntel = domainResponse.ok ? domainResponse.domains || [] : [];
+    } catch (error) {
+      currentDomainIntel = [];
+    }
+
+    renderOAuth(report.content?.oauth);
+    renderStats(report.risk);
+    renderThirdParties(report.thirdParties);
+    renderLinks(report.content?.policyLinks);
+    renderGraph(report, null);
+    renderPrivacyLabel(report, null);
+    renderSiteIntelligence(report);
+    renderFingerprinting(report);
+    renderDsar(report, null);
+    renderEvidenceQA(report, null, el("evidenceQuestion").value);
+
+    const receiptResponse = await chrome.runtime.sendMessage({
+      type: "CONSENTLENS_GET_RECEIPTS"
     });
-    currentDomainIntel = domainResponse.ok ? domainResponse.domains || [] : [];
-  } catch (error) {
-    currentDomainIntel = [];
+    renderReceipts(receiptResponse.receipts);
+    const timelineResponse = await chrome.runtime.sendMessage({
+      type: "CONSENTLENS_GET_TIMELINE"
+    });
+    renderTimeline(timelineResponse.timeline);
+    renderPolicyIntelligence(null);
+    await loadMemory();
+  } finally {
+    setRefreshBusy(false);
   }
-
-  renderOAuth(report.content?.oauth);
-  renderStats(report.risk);
-  renderThirdParties(report.thirdParties);
-  renderLinks(report.content?.policyLinks);
-  renderGraph(report, null);
-  renderPrivacyLabel(report, null);
-  renderSiteIntelligence(report);
-  renderFingerprinting(report);
-  renderDsar(report, null);
-  renderEvidenceQA(report, null, el("evidenceQuestion").value);
-
-  const receiptResponse = await chrome.runtime.sendMessage({
-    type: "CONSENTLENS_GET_RECEIPTS"
-  });
-  renderReceipts(receiptResponse.receipts);
-  const timelineResponse = await chrome.runtime.sendMessage({
-    type: "CONSENTLENS_GET_TIMELINE"
-  });
-  renderTimeline(timelineResponse.timeline);
-  renderPolicyIntelligence(null);
-  await loadMemory();
 }
 
 el("refresh").addEventListener("click", refresh);
@@ -911,6 +1116,8 @@ el("analyzePolicy").addEventListener("click", async () => {
     const fallback = buildLocalPolicyAnalysis(currentReport, "IN");
     fallback.notice = `Showing a local summary instead because the backend is unavailable.`;
     currentAnalysis = fallback;
+    renderPlainEnglish(currentReport, currentAnalysis);
+    renderDecisionSummary(currentReport, currentAnalysis);
     renderPolicyIntelligence(fallback);
     renderGraph(currentReport, currentAnalysis);
     renderPrivacyLabel(currentReport, currentAnalysis);
@@ -924,6 +1131,8 @@ el("analyzePolicy").addEventListener("click", async () => {
 
   currentAnalysis = response.analysis;
   currentDomainIntel = response.analysis.domainIntel || currentDomainIntel;
+  renderPlainEnglish(currentReport, currentAnalysis);
+  renderDecisionSummary(currentReport, currentAnalysis);
   renderPolicyIntelligence(response.analysis);
   renderGraph(currentReport, currentAnalysis);
   renderPrivacyLabel(currentReport, currentAnalysis);

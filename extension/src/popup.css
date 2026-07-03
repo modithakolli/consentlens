@@ -54,6 +54,64 @@ body {
   margin-bottom: 0;
 }
 
+.decision {
+  display: grid;
+  grid-template-columns: minmax(0, 1.15fr) minmax(0, 0.85fr);
+  gap: 12px;
+  align-items: start;
+  border: 1px solid #d7deea;
+  background: linear-gradient(180deg, #ffffff 0%, #fbfcff 100%);
+}
+
+.decisionMain {
+  display: grid;
+  gap: 6px;
+}
+
+.decisionSide {
+  display: grid;
+  gap: 10px;
+}
+
+.decisionText {
+  color: var(--muted);
+  max-width: 38ch;
+}
+
+.decision #decisionVerdict {
+  font-size: 26px;
+  line-height: 1.1;
+}
+
+.decision.low #decisionVerdict {
+  color: var(--low);
+}
+
+.decision.medium #decisionVerdict {
+  color: var(--medium);
+}
+
+.decision.high #decisionVerdict {
+  color: var(--high);
+}
+
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.chipButton {
+  border: 1px solid var(--line);
+  background: #f7fafc;
+  border-radius: 999px;
+  padding: 7px 10px;
+  color: var(--ink);
+  font: inherit;
+  cursor: default;
+}
+
 h1,
 h2,
 p {
@@ -383,6 +441,10 @@ details {
   padding: 12px;
 }
 
+.advancedPanel {
+  border-color: #d6dce7;
+}
+
 details > summary {
   cursor: pointer;
   font-weight: 700;
@@ -405,6 +467,10 @@ details[open] > summary::after {
 
 details > *:not(summary) {
   margin-top: 10px;
+}
+
+details[open].advancedPanel {
+  box-shadow: 0 8px 28px rgba(22, 32, 51, 0.05);
 }
 
 .faqBar {

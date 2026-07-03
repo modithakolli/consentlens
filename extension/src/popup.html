@@ -16,6 +16,24 @@
         <button id="refresh" type="button" title="Refresh scan" aria-label="Refresh scan">Refresh</button>
       </header>
 
+      <section class="decision" id="decisionSummary">
+        <div class="decisionMain">
+          <span class="eyebrow">Should I worry?</span>
+          <strong id="decisionVerdict">Loading...</strong>
+          <p id="decisionText" class="decisionText">We are building the short answer.</p>
+        </div>
+        <div class="decisionSide">
+          <div>
+            <span class="eyebrow">Primary risks</span>
+            <div id="decisionRisks" class="chips"></div>
+          </div>
+          <div>
+            <span class="eyebrow">What to do</span>
+            <div id="decisionActions" class="chips"></div>
+          </div>
+        </div>
+      </section>
+
       <section class="risk" id="riskCard">
         <div>
           <span class="eyebrow">Risk level</span>
@@ -28,109 +46,112 @@
       </section>
 
       <section class="summary">
-        <h2>Plain English</h2>
+        <h2>What happened</h2>
         <div id="plainEnglish" class="stack"></div>
       </section>
 
       <section>
         <div class="sectionHead">
           <div>
-            <h2>Privacy Nutrition Label</h2>
-            <p class="note">Readable answers first: data, sharing, retention, AI, and rights.</p>
+            <h2>Quick privacy label</h2>
+            <p class="note">A simple readout of data, sharing, retention, AI, and rights.</p>
           </div>
-          <button id="analyzeNutrition" type="button">Summarize</button>
+          <button id="analyzeNutrition" type="button">Build label</button>
         </div>
         <div id="privacyLabel" class="labelGrid"></div>
       </section>
 
       <section>
-        <h2>Site Intelligence</h2>
+        <h2>Recognized companies</h2>
         <div id="siteIntelligence" class="labelGrid"></div>
       </section>
 
-      <section class="grid">
-        <article>
-          <h2>Data Collected</h2>
-          <ul id="dataCollected"></ul>
-        </article>
-        <article>
-          <h2>Shared With</h2>
-          <ul id="sharedWith"></ul>
-        </article>
-      </section>
+      <details class="advancedPanel" id="advancedPanel">
+        <summary>More details</summary>
+        <section class="grid">
+          <article>
+            <h2>What data we saw</h2>
+            <ul id="dataCollected"></ul>
+          </article>
+          <article>
+            <h2>Who it may reach</h2>
+            <ul id="sharedWith"></ul>
+          </article>
+        </section>
 
-      <section>
-        <h2>OAuth Consent</h2>
-        <div id="oauth"></div>
-      </section>
+        <section>
+          <h2>Account access</h2>
+          <div id="oauth"></div>
+        </section>
 
-      <section>
-        <h2>Third Parties</h2>
-        <div class="stats" id="stats"></div>
-        <ul id="thirdParties" class="domains"></ul>
-      </section>
+        <section>
+          <h2>Outside services</h2>
+          <div class="stats" id="stats"></div>
+          <ul id="thirdParties" class="domains"></ul>
+        </section>
 
-      <section>
-        <h2>Policy Links</h2>
-        <ul id="policyLinks"></ul>
-      </section>
+        <section>
+          <h2>Policy links</h2>
+          <ul id="policyLinks"></ul>
+        </section>
 
-      <section>
-        <div class="sectionHead">
-          <h2>Policy Intelligence</h2>
-          <div class="sectionActions">
-            <button id="openSettings" type="button">Backend status</button>
-            <button id="analyzePolicy" type="button">Summarize policy</button>
+        <section>
+          <div class="sectionHead">
+            <h2>Policy summary</h2>
+            <div class="sectionActions">
+              <button id="openSettings" type="button">Check backend</button>
+              <button id="analyzePolicy" type="button">Analyze policy</button>
+            </div>
           </div>
-        </div>
-        <p class="note">When the backend is connected, this fetches and summarizes the linked policy. If not, ConsentLens falls back to a local summary from the current page.</p>
-        <div id="policyIntelligence" class="stack"></div>
-      </section>
+          <p class="note">When the backend is connected, this fetches and summarizes the linked policy. If not, ConsentLens falls back to a local summary from the current page.</p>
+          <div id="policyIntelligence" class="stack"></div>
+        </section>
 
-      <section>
-        <h2>Data Flow</h2>
-        <div id="trackerGraph" class="graph"></div>
-      </section>
+        <section>
+          <h2>Data flow</h2>
+          <div id="trackerGraph" class="graph"></div>
+        </section>
 
-      <section>
-        <h2>Privacy Timeline</h2>
-        <ul id="privacyTimeline" class="domains"></ul>
-      </section>
+        <section>
+          <h2>What changed recently</h2>
+          <ul id="privacyTimeline" class="domains"></ul>
+        </section>
 
-      <section>
-        <h2>Saved Intelligence</h2>
-        <p class="note">What ConsentLens remembers on this device: site scans, policy snapshots, consent receipts, and Q&A answers.</p>
-        <div id="memorySummary" class="labelGrid"></div>
-        <ul id="memoryFeed" class="domains"></ul>
-      </section>
+        <section>
+          <h2>Saved history</h2>
+          <p class="note">What ConsentLens remembers on this device: site scans, policy snapshots, consent receipts, tracker observations, and Q&A answers.</p>
+          <div id="memorySummary" class="labelGrid"></div>
+          <ul id="memoryFeed" class="domains"></ul>
+        </section>
 
-      <details>
-        <summary>Data Rights Request</summary>
-        <p class="note">A DSAR is a data rights request. Use it when you want a company to access, delete, export, or explain your data.</p>
-        <div class="sectionHead">
-          <h2>Draft</h2>
-          <button id="copyDsar" type="button">Copy</button>
-        </div>
-        <textarea id="dsarDraft" class="draft" readonly></textarea>
+        <details>
+          <summary>Data rights request</summary>
+          <p class="note">A data rights request is a formal ask for your data. Use it when you want a company to access, delete, export, or explain your data.</p>
+          <div class="sectionHead">
+            <h2>Draft</h2>
+            <button id="copyDsar" type="button">Copy</button>
+          </div>
+          <textarea id="dsarDraft" class="draft" readonly></textarea>
+        </details>
+
+        <section>
+          <h2>Fingerprinting check</h2>
+          <div id="fingerprinting" class="stack"></div>
+        </section>
+
+        <details id="evidencePanel">
+          <summary>Ask a question</summary>
+          <div id="faqBar" class="faqBar"></div>
+          <textarea id="evidenceQuestion" class="draft" rows="2" placeholder="Why is this risky?"></textarea>
+          <button id="askEvidence" type="button">Explain</button>
+          <div id="evidenceAnswer" class="stack"></div>
+        </details>
+
+        <section>
+          <h2>Recent consent choices</h2>
+          <ul id="receipts"></ul>
+        </section>
       </details>
-
-      <section>
-        <h2>Fingerprinting</h2>
-        <div id="fingerprinting" class="stack"></div>
-      </section>
-
-      <details id="evidencePanel">
-        <summary>Evidence Q&A</summary>
-        <div id="faqBar" class="faqBar"></div>
-        <textarea id="evidenceQuestion" class="draft" rows="2" placeholder="Why is this risky?"></textarea>
-        <button id="askEvidence" type="button">Explain</button>
-        <div id="evidenceAnswer" class="stack"></div>
-      </details>
-
-      <section>
-        <h2>Consent Receipts</h2>
-        <ul id="receipts"></ul>
-      </section>
     </main>
     <script src="popup.js"></script>
   </body>
