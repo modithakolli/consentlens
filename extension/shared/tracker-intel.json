@@ -59,6 +59,21 @@
     ]
   },
   {
+    "company": "GitHub",
+    "category": "utility",
+    "risk": "low",
+    "purpose": "First-party asset delivery and infrastructure",
+    "hq": "United States",
+    "reputation": "GitHub content and asset infrastructure",
+    "domains": [
+      "github.githubassets.com",
+      "avatars.githubusercontent.com",
+      "user-images.githubusercontent.com",
+      "alive.github.com",
+      "github-cloud.s3.amazonaws.com"
+    ]
+  },
+  {
     "company": "Adobe",
     "category": "analytics",
     "risk": "medium",

@@ -81,7 +81,12 @@
       "lh3.google.com",
       "ogs.google.com",
       "translate.google.com",
-      "googleusercontent.com"
+      "googleusercontent.com",
+      "github.githubassets.com",
+      "avatars.githubusercontent.com",
+      "user-images.githubusercontent.com",
+      "alive.github.com",
+      "github-cloud.s3.amazonaws.com"
     ],
     risk: [
       "fingerprint.com",
@@ -98,6 +103,7 @@
     { company: "Google", category: "ads", risk: "high", purpose: "Advertising and conversion tracking", hq: "United States", reputation: "Large ad ecosystem", domains: ["doubleclick.net", "ad.doubleclick.net", "googleadservices.com", "adservice.google.com", "googlesyndication.com", "googleads.g.doubleclick.net", "stats.g.doubleclick.net", "fls.doubleclick.net", "15392685.fls.doubleclick.net"] },
     { company: "Google", category: "identity", risk: "medium", purpose: "Authentication and account identity", hq: "United States", reputation: "Identity provider surface", domains: ["accounts.google.com", "google.com", "google.co.in", "googleapis.com", "apis.google.com", "play.google.com", "mail.google.com", "drive.google.com", "meet.google.com", "chat.google.com"] },
     { company: "Google", category: "utility", risk: "low", purpose: "Shared web infrastructure and assets", hq: "United States", reputation: "Common shared asset and utility surface", domains: ["gstatic.com", "fonts.gstatic.com", "ssl.gstatic.com", "lh3.google.com", "ogs.google.com", "translate.google.com", "googleusercontent.com"] },
+    { company: "GitHub", category: "utility", risk: "low", purpose: "First-party asset delivery and infrastructure", hq: "United States", reputation: "GitHub content and asset infrastructure", domains: ["github.githubassets.com", "avatars.githubusercontent.com", "user-images.githubusercontent.com", "alive.github.com", "github-cloud.s3.amazonaws.com"] },
     { company: "Microsoft", category: "analytics", risk: "medium", purpose: "Usage measurement and insights", hq: "United States", reputation: "Product telemetry and analytics", domains: ["clarity.ms", "scripts.clarity.ms", "e.clarity.ms", "y.clarity.ms", "bat.bing.com", "bat.bing.net"] },
     { company: "LinkedIn", category: "ads", risk: "high", purpose: "Advertising and identity", hq: "United States", reputation: "Professional identity services", domains: ["linkedin.com", "licdn.com", "snap.licdn.com", "px.ads.linkedin.com", "px4.ads.linkedin.com"] },
     { company: "Phenom", category: "analytics", risk: "medium", purpose: "Recruiting platform and candidate analytics", hq: "United States", reputation: "Hiring experience platform", domains: ["phenompeople.com", "phenomtrackapi-ir.phenompeople.com", "pp-cdn.phenompeople.com", "cdn.phenompeople.com", "cdn-bot.phenompeople.com"] },

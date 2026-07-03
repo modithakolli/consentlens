@@ -85,6 +85,34 @@ function renderChips(target, values, className = "chipButton") {
   });
 }
 
+function confidenceSummary(report, analysis) {
+  if (analysis?.source === "local") {
+    return {
+      label: "Medium",
+      detail: "Policy summary came from the current page because the backend was unavailable."
+    };
+  }
+
+  if (analysis?.policy) {
+    return {
+      label: "High",
+      detail: "Network requests, page text, and the linked policy were analyzed."
+    };
+  }
+
+  if ((report?.thirdParties || []).length || report?.content?.policyLinks?.length) {
+    return {
+      label: "Medium",
+      detail: "Network traffic and visible page signals were analyzed."
+    };
+  }
+
+  return {
+    label: "Low",
+    detail: "Only a limited scan was possible from the current page."
+  };
+}
+
 function buildDecisionSummary(report, analysis) {
   const score = report?.risk?.score ?? 0;
   const level = String(report?.risk?.level || "Low");
@@ -328,22 +356,14 @@ function renderThirdParties(thirdParties) {
     li.appendChild(row);
 
     const intel = resolvePartyIntel(party);
-    if (intel.known) {
-      const note = document.createElement("p");
-      note.className = "note";
-      note.textContent = `${intel.company}: ${intel.purpose}${intel.reputation ? ` (${intel.reputation})` : ""}`;
-      li.appendChild(note);
-    } else if (intel.observed) {
-      const note = document.createElement("p");
-      note.className = "note";
-      note.textContent = `Previously observed on this device: ${intel.purpose}`;
-      li.appendChild(note);
-    } else if (intel.purpose || intel.category) {
-      const note = document.createElement("p");
-      note.className = "note";
-      note.textContent = `${intel.category || "unknown"}: ${intel.purpose || "Unknown third-party service"}`;
-      li.appendChild(note);
-    }
+    const note = document.createElement("p");
+    note.className = "note";
+    note.textContent = `${intel.company}: ${intel.purpose}${intel.reputation && intel.known ? ` (${intel.reputation})` : ""}`;
+    li.appendChild(note);
+    const evidence = document.createElement("p");
+    evidence.className = "note";
+    evidence.textContent = intel.evidence;
+    li.appendChild(evidence);
 
     const tags = document.createElement("div");
     const categories = party.categories?.length ? party.categories : [intel.category || "unknown"];
@@ -402,16 +422,27 @@ function domainIntelMap() {
 
 function resolvePartyIntel(party) {
   const fallback = domainIntelMap().get(party.host) || {};
+  const company = party.company || fallback.company || "Unidentified service";
+  const known = Boolean(party.known || fallback.known);
+  const observed = Boolean(party.observed || fallback.observed);
+  const inferred = Boolean((party.category || party.categories?.length || party.purpose) && !known && !observed);
   return {
     host: party.host,
-    company: party.company || fallback.company || "Unknown",
+    company,
     category: party.category || party.categories?.[0] || fallback.category || "unknown",
     risk: party.risk || fallback.risk || "unknown",
     purpose: party.purpose || fallback.purpose || "Unknown third-party service",
     hq: party.hq || fallback.hq || "Unknown",
     reputation: party.reputation || fallback.reputation || "Unknown",
-    known: Boolean(party.known || fallback.known),
-    observed: Boolean(party.observed || fallback.observed)
+    known,
+    observed,
+    evidence: known
+      ? "Known company mapping"
+      : observed
+        ? "Observed on this device"
+        : inferred
+          ? "Inferred from the current scan"
+          : "Not yet mapped"
   };
 }
 
@@ -502,6 +533,19 @@ function renderPolicyIntelligence(analysis) {
     return;
   }
 
+  const confidence = confidenceSummary(currentReport, analysis);
+  const source = analysis.source === "local" ? "Local estimate from the current page" : "Backend policy analysis";
+
+  const sourceLine = document.createElement("p");
+  sourceLine.className = "note";
+  sourceLine.textContent = `Source: ${source}`;
+  node.appendChild(sourceLine);
+
+  const confidenceLine = document.createElement("p");
+  confidenceLine.className = "note";
+  confidenceLine.textContent = `Confidence: ${confidence.label}. ${confidence.detail}`;
+  node.appendChild(confidenceLine);
+
   if (analysis.source === "local") {
     const note = document.createElement("p");
     note.className = "note";
@@ -524,7 +568,7 @@ function renderPolicyIntelligence(analysis) {
 
   if (policy.privacyLabel) {
     const label = document.createElement("p");
-    label.textContent = `Privacy grade: ${policy.privacyLabel.grade}. Collects: ${policy.privacyLabel.collects.length ? policy.privacyLabel.collects.join(", ") : "none detected"}. Shares: ${policy.privacyLabel.shares.length ? policy.privacyLabel.shares.join(", ") : "none detected"}. Retention: ${policy.privacyLabel.retention}.`;
+    label.textContent = `Privacy grade${analysis.source === "local" ? " (local estimate)" : ""}: ${policy.privacyLabel.grade}. Collects: ${policy.privacyLabel.collects.length ? policy.privacyLabel.collects.join(", ") : "none detected"}. Shares: ${policy.privacyLabel.shares.length ? policy.privacyLabel.shares.join(", ") : "none detected"}. Retention: ${policy.privacyLabel.retention}.`;
     node.appendChild(label);
   }
 
@@ -581,11 +625,13 @@ function renderPrivacyLabel(report, analysis) {
   const node = el("privacyLabel");
   node.innerHTML = "";
   const policy = analysis?.policy;
+  const confidence = confidenceSummary(report, analysis);
 
   if (policy?.privacyLabel) {
     const label = policy.privacyLabel;
     node.append(
       labelItem("Privacy grade", label.grade, policy.risk.level + " policy risk"),
+      labelItem("Confidence", confidence.label, confidence.detail),
       labelItem("Data collected", label.collects.length ? label.collects.join(", ") : "No strong signal", "from policy text"),
       labelItem("Shared or sold", label.shares.length ? label.shares.join(", ") : policy.saleOrSharing, "evidence-based"),
       labelItem("Retention", policy.retention?.[0] || label.retention, "policy wording"),
@@ -597,6 +643,7 @@ function renderPrivacyLabel(report, analysis) {
 
   node.append(
     labelItem("Privacy grade", "Pending", "click Build label"),
+    labelItem("Confidence", confidence.label, confidence.detail),
     labelItem("Data collected", report.plainEnglish.dataCollected.slice(0, 2).join(", "), "from the page"),
     labelItem("Shared with", report.plainEnglish.sharedWith.slice(0, 2).join(", "), "from the page"),
     labelItem("Third parties", String(report.thirdParties?.length || 0), "network and page hints"),
@@ -611,10 +658,11 @@ function renderSiteIntelligence(report) {
   const mergedIntel = (report.thirdParties || []).map(resolvePartyIntel);
   const companyList = Array.from(new Set(
     mergedIntel
-      .map((item) => item.company || item.host)
-      .filter(Boolean)
+      .filter((item) => item.company && item.company !== "Unidentified service")
+      .map((item) => item.company)
   )).slice(0, 4);
   const known = mergedIntel.filter((item) => item.known).length;
+  const inferred = mergedIntel.filter((item) => !item.known && item.evidence === "Inferred from the current scan").length;
   const companyCounts = new Map();
   mergedIntel.filter((item) => item.known).forEach((item) => {
     companyCounts.set(item.company, (companyCounts.get(item.company) || 0) + 1);
@@ -625,8 +673,9 @@ function renderSiteIntelligence(report) {
   const topCompany = Array.from(companyCounts.entries()).sort((a, b) => b[1] - a[1])[0];
   node.append(
     labelItem("Website", report.pageHost || "Unknown", "active tab"),
-    labelItem("Companies involved", companyList.length ? companyList.join(", ") : "No company match yet", known ? `${known} known mappings` : "Inferred from current scan"),
-    labelItem("Main service type", topCategory ? friendlyCategory(topCategory[0]) : "Unknown", topCategory ? `${topCategory[1]} domain${topCategory[1] === 1 ? "" : "s"}` : "No category yet"),
+    labelItem("Companies involved", companyList.length ? companyList.join(", ") : "No company match yet", known ? `${known} known mappings` : inferred ? `${inferred} inferred` : "Needs a richer database"),
+    labelItem("Main service type", topCategory ? friendlyCategory(topCategory[0]) : "Unknown", topCategory ? `${topCategory[1]} domain${topCategory[1] === 1 ? "" : "s"} seen` : "No category yet"),
+    labelItem("Top company", topCompany ? topCompany[0] : "Unidentified service", topCompany ? `${topCompany[1]} mapped domain${topCompany[1] === 1 ? "" : "s"}` : "No strong company match yet"),
     labelItem("Recommended action", report.risk.level === "High" ? "Review before accepting" : "Keep monitoring", report.risk.level === "High" ? "High risk" : `${report.risk.level} risk`)
   );
 }
@@ -851,14 +900,10 @@ function renderMemory(memory) {
   summary.innerHTML = "";
   feed.innerHTML = "";
 
+  const hasCounts = Boolean(memory && Object.values(memory.counts || {}).some((value) => Number(value) > 0));
+  const hasItems = Boolean(memory?.items?.length);
+
   if (!memory) {
-    summary.append(
-      labelItem("Site scans", "0", "saved on this device"),
-      labelItem("Policy snapshots", "0", "saved on this device"),
-      labelItem("Consent receipts", "0", "saved on this device"),
-      labelItem("Q&A answers", "0", "saved on this device"),
-      labelItem("Tracker archive", "0", "observed domains")
-    );
     const li = document.createElement("li");
     li.className = "note";
     li.textContent = "No saved intelligence yet.";
@@ -867,15 +912,17 @@ function renderMemory(memory) {
   }
 
   const counts = memory.counts || {};
-  summary.append(
-    labelItem("Site scans", String(counts.timeline || 0), "recent site activity"),
-    labelItem("Policy snapshots", String(counts.policies || 0), "stored policy notes"),
-    labelItem("Consent receipts", String(counts.receipts || 0), "accepted or reviewed flows"),
-    labelItem("Q&A answers", String(counts.qa || 0), "answers saved locally"),
-    labelItem("Tracker archive", String(counts.trackers || 0), "observed domains remembered")
-  );
+  if (hasCounts) {
+    summary.append(
+      labelItem("Site scans", String(counts.timeline || 0), "recent site activity"),
+      labelItem("Policy snapshots", String(counts.policies || 0), "stored policy notes"),
+      labelItem("Consent receipts", String(counts.receipts || 0), "accepted or reviewed flows"),
+      labelItem("Q&A answers", String(counts.qa || 0), "answers saved locally"),
+      labelItem("Tracker archive", String(counts.trackers || 0), "observed domains remembered")
+    );
+  }
 
-  if (!memory.items?.length) {
+  if (!hasItems) {
     const li = document.createElement("li");
     li.className = "note";
     li.textContent = "No saved intelligence yet.";
