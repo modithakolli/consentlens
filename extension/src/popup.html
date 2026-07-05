@@ -45,29 +45,37 @@
         <span id="riskScore">0/100</span>
       </section>
 
+      <section class="trustActions" aria-label="Quick actions">
+        <button id="viewDetails" type="button">View details</button>
+        <button id="whyRisk" type="button">Why this risk?</button>
+        <button id="whatCanIDo" type="button">What can I do?</button>
+      </section>
+
+      <p class="note trustNote">These are network observations from your browser session. No data leaves your device unless you use backend analysis.</p>
+
       <section class="summary">
         <h2>What happened</h2>
         <div id="plainEnglish" class="stack"></div>
       </section>
 
-      <section>
-        <div class="sectionHead">
-          <div>
-            <h2>Quick privacy label</h2>
-            <p class="note">A simple readout of data, sharing, retention, AI, and rights.</p>
-          </div>
-          <button id="analyzeNutrition" type="button">Build label</button>
-        </div>
-        <div id="privacyLabel" class="labelGrid"></div>
-      </section>
-
-      <section>
-        <h2>Recognized companies</h2>
-        <div id="siteIntelligence" class="labelGrid"></div>
-      </section>
-
       <details class="advancedPanel" id="advancedPanel">
         <summary>More details</summary>
+        <section id="privacyLabelSection">
+          <div class="sectionHead">
+            <div>
+              <h2>Quick privacy label</h2>
+              <p class="note">A simple readout of data, sharing, retention, AI, and rights.</p>
+            </div>
+            <button id="analyzeNutrition" type="button">Build label</button>
+          </div>
+          <div id="privacyLabel" class="labelGrid"></div>
+        </section>
+
+        <section id="siteIntelligenceSection">
+          <h2>Recognized companies</h2>
+          <div id="siteIntelligence" class="labelGrid"></div>
+        </section>
+
         <section class="grid">
           <article>
             <h2>What data we saw</h2>
@@ -95,7 +103,7 @@
           <ul id="policyLinks"></ul>
         </section>
 
-        <section>
+        <section id="policySection">
           <div class="sectionHead">
             <h2>Policy summary</h2>
             <div class="sectionActions">
@@ -107,24 +115,24 @@
           <div id="policyIntelligence" class="stack"></div>
         </section>
 
-        <section>
+        <section id="dataFlowSection">
           <h2>Data flow</h2>
           <div id="trackerGraph" class="graph"></div>
         </section>
 
-        <section>
+        <section id="timelineSection">
           <h2>What changed recently</h2>
           <ul id="privacyTimeline" class="domains"></ul>
         </section>
 
-        <section>
+        <section id="memorySection">
           <h2>Saved history</h2>
           <p class="note">What ConsentLens remembers on this device: site scans, policy snapshots, consent receipts, tracker observations, and Q&A answers.</p>
           <div id="memorySummary" class="labelGrid"></div>
           <ul id="memoryFeed" class="domains"></ul>
         </section>
 
-        <details>
+        <details id="dataRightsSection">
           <summary>Data rights request</summary>
           <p class="note">A data rights request is a formal ask for your data. Use it when you want a company to access, delete, export, or explain your data.</p>
           <div class="sectionHead">
@@ -134,7 +142,7 @@
           <textarea id="dsarDraft" class="draft" readonly></textarea>
         </details>
 
-        <section>
+        <section id="fingerprintingSection">
           <h2>Fingerprinting check</h2>
           <div id="fingerprinting" class="stack"></div>
         </section>

@@ -1,24 +1,58 @@
 (function attachConsentWarning(globalScope) {
   let bypassConsentWarning = false;
 
-  function classifyConsentClick(target) {
+  const CONSENT_CONTAINER_SELECTOR = "[role='dialog'], dialog, [id*='cookie' i], [class*='cookie' i], [id*='consent' i], [class*='consent' i], [id*='privacy' i], [class*='privacy' i], [id*='onetrust' i], [class*='onetrust' i]";
+  const CONSENT_CONTEXT_PATTERN = /cookie|consent|privacy|tracking|analytics|advertising|marketing|preferences|choice|choices|third-party|third party/i;
+  const ACCEPT_LABEL_PATTERN = /^(accept all|accept cookies?|accept selected|accept selection|accept optional|allow all|allow cookies?|allow selected|agree|i agree|save and continue|continue with recommended|ok|okay|got it)$/i;
+  const GENERIC_ACCEPT_PATTERN = /^(accept|allow|agree|ok|okay|got it|continue)$/i;
+  const REJECT_OR_SETTINGS_PATTERN = /reject|decline|necessary|manage|settings|preferences|customize|limit/i;
+
+  function getText(node) {
+    return String(
+      node?.innerText ||
+      node?.value ||
+      node?.getAttribute?.("aria-label") ||
+      node?.getAttribute?.("title") ||
+      ""
+    ).replace(/\s+/g, " ").trim();
+  }
+
+  function gatherContext(control) {
+    const chunks = [];
+    let current = control;
+    for (let depth = 0; current && depth < 5; depth += 1, current = current.parentElement) {
+      const text = ConsentLensPageScanner.nodeText(current);
+      if (text) chunks.push(text);
+      if (current.matches?.(CONSENT_CONTAINER_SELECTOR)) break;
+    }
+    return chunks.join(" ").slice(0, 8000);
+  }
+
+  function hasConsentContext(control, report) {
+    const context = gatherContext(control);
+    if (CONSENT_CONTEXT_PATTERN.test(context)) return true;
+    const bannerText = String(report?.consentText || report?.signalText || "");
+    if (CONSENT_CONTEXT_PATTERN.test(bannerText) && /accept|reject|manage|settings|preferences/i.test(context)) {
+      return true;
+    }
+    return false;
+  }
+
+  function classifyConsentClick(target, report) {
     const control = target?.closest?.("button, a, input[type='button'], input[type='submit'], [role='button']");
     if (!control) return null;
 
-    const label = (
-      control.innerText ||
-      control.value ||
-      control.getAttribute("aria-label") ||
-      control.getAttribute("title") ||
-      ""
-    ).replace(/\s+/g, " ").trim();
+    const label = getText(control);
 
     if (!label || label.length > 80) return null;
 
-    const isAccept = /^(accept all|allow all|agree|i agree|accept cookies|accept|ok|got it|yes, i agree)$/i.test(label);
-    const isManage = /manage|settings|preferences|customize|reject|decline|necessary/i.test(label);
+    const lower = label.toLowerCase();
+    const isRejectLike = REJECT_OR_SETTINGS_PATTERN.test(label);
+    const isAcceptLike = ACCEPT_LABEL_PATTERN.test(label) || (GENERIC_ACCEPT_PATTERN.test(label) && hasConsentContext(control, report));
 
-    if (!isAccept || isManage) return null;
+    if (isRejectLike || !isAcceptLike) return null;
+
+    if (!hasConsentContext(control, report)) return null;
 
     return { control, label };
   }
@@ -52,7 +86,7 @@
     title.textContent = "Before you accept";
 
     const body = document.createElement("p");
-    body.textContent = `You clicked "${action.label}". Here is what that consent may allow.`;
+    body.textContent = `You clicked "${action.label}". This is a consent action, so here is the short version of what it may allow.`;
 
     const list = document.createElement("ul");
     summary.slice(0, 5).forEach((item) => {
@@ -201,7 +235,8 @@
     document.addEventListener("click", (event) => {
       if (bypassConsentWarning) return;
 
-      const action = classifyConsentClick(event.target);
+      const report = typeof buildReport === "function" ? buildReport() : null;
+      const action = classifyConsentClick(event.target, report);
       if (!action) return;
 
       event.preventDefault();

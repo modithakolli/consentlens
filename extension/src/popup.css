@@ -78,6 +78,21 @@ body {
   max-width: 38ch;
 }
 
+.trustActions {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.trustActions button {
+  min-height: 40px;
+  background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+}
+
+.trustNote {
+  padding: 0 2px;
+}
+
 .decision #decisionVerdict {
   font-size: 26px;
   line-height: 1.1;
@@ -445,10 +460,20 @@ details {
   border-color: #d6dce7;
 }
 
+.advancedPanel > section,
+.advancedPanel > details {
+  margin-top: 12px;
+}
+
+.advancedPanel > section:first-of-type {
+  margin-top: 0;
+}
+
 details > summary {
   cursor: pointer;
   font-weight: 700;
   list-style: none;
+  transition: color 140ms ease;
 }
 
 details > summary::-webkit-details-marker {
@@ -506,4 +531,30 @@ details[open].advancedPanel {
 .flowSubtext {
   fill: #667085;
   font: 10px system-ui, sans-serif;
+}
+
+@media (max-width: 560px) {
+  body {
+    width: 100%;
+    min-width: 320px;
+  }
+
+  .decision {
+    grid-template-columns: 1fr;
+  }
+
+  .risk {
+    grid-template-columns: 1fr;
+    justify-items: start;
+  }
+
+  .trustActions {
+    grid-template-columns: 1fr;
+  }
+
+  .grid,
+  .labelGrid,
+  .stats {
+    grid-template-columns: 1fr;
+  }
 }

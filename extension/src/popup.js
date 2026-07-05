@@ -118,6 +118,7 @@ function buildDecisionSummary(report, analysis) {
   const level = String(report?.risk?.level || "Low");
   const hasOAuth = Boolean(report?.content?.oauth?.hasOAuthProvider || report?.content?.oauth?.scopes?.length);
   const fingerprinting = Boolean(report?.content?.fingerprinting?.detected);
+  const serviceCount = Array.isArray(report?.thirdParties) ? report.thirdParties.length : 0;
   const policy = analysis?.policy || null;
   const reasons = Array.isArray(report?.risk?.reasons) ? report.risk.reasons : [];
 
@@ -146,6 +147,10 @@ function buildDecisionSummary(report, analysis) {
 
   if (policy?.privacyLabel?.retention && !/not stated/i.test(policy.privacyLabel.retention)) {
     text = `${text} The policy suggests data may be kept for ${policy.privacyLabel.retention}.`;
+  }
+
+  if (serviceCount && !/outside service|outside companies/i.test(text)) {
+    text = `${text} This site uses ${serviceCount} outside service${serviceCount === 1 ? "" : "s"}.`;
   }
 
   const risks = [];
@@ -219,8 +224,8 @@ function buildPlainEnglishLines(report, analysis) {
     if (consent) groups.push(`${consent} consent tool${consent > 1 ? "s" : ""}`);
     lines.push(
       groups.length
-        ? `This page talked to ${thirdParties} outside companies. Some help with ${groups.join(", ")}.`
-        : `This page talked to ${thirdParties} outside companies.`
+        ? `Your browser contacted ${thirdParties} outside companies while loading this page. Some help with ${groups.join(", ")}.`
+        : `Your browser contacted ${thirdParties} outside companies while loading this page.`
     );
   } else {
     lines.push("We did not see outside companies on this scan.");
@@ -1025,6 +1030,22 @@ function setRefreshBusy(isBusy) {
   button.textContent = isBusy ? "Refreshing..." : "Refresh";
 }
 
+function setSimpleView() {
+  ["advancedPanel", "evidencePanel", "dataRightsSection"].forEach((id) => {
+    const node = el(id);
+    if (node) node.open = false;
+  });
+}
+
+function revealSection(sectionId, detailsId = "advancedPanel") {
+  const details = el(detailsId);
+  if (details) details.open = true;
+  const target = el(sectionId);
+  if (target?.scrollIntoView) {
+    target.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+}
+
 async function getActiveTab() {
   const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
   return tab;
@@ -1087,6 +1108,7 @@ async function refresh() {
 
   setRefreshBusy(true);
   try {
+    setSimpleView();
     el("host").textContent = displayHost(tab.url || "Current tab");
     const previousUpdatedAt = currentReport?.updatedAt || 0;
     await scanActiveTab(tab.id);
@@ -1150,6 +1172,9 @@ el("copyDsar").addEventListener("click", copyDsar);
 el("askEvidence").addEventListener("click", () => askEvidence(el("evidenceQuestion").value));
 el("evidenceQuestion").addEventListener("input", () => renderEvidenceQA(currentReport, currentAnalysis));
 el("analyzeNutrition").addEventListener("click", () => el("analyzePolicy").click());
+el("viewDetails").addEventListener("click", () => revealSection("privacyLabelSection"));
+el("whyRisk").addEventListener("click", () => revealSection("policySection"));
+el("whatCanIDo").addEventListener("click", () => revealSection("dataRightsSection"));
 ["Why is this risky?", "What data is collected?", "Who gets access?", "Can I request deletion?"].forEach((question) => {
   const button = document.createElement("button");
   button.type = "button";
