@@ -626,6 +626,33 @@ function labelItem(title, value, detail) {
   return box;
 }
 
+function localDataCollectedSummary(report) {
+  const items = new Set();
+  if (report?.content?.oauth?.hasOAuthProvider || report?.content?.oauth?.scopes?.length) items.add("account access");
+  if (report?.content?.fingerprinting?.detected) items.add("device or browser identifiers");
+  if (report?.risk?.reasons?.some((reason) => /cookie banner/i.test(reason))) items.add("cookie and consent preferences");
+  if ((report?.thirdParties || []).length) items.add("browsing activity and page interactions");
+  if (report?.content?.policySignals?.dataCollected?.length) {
+    report.content.policySignals.dataCollected.forEach((item) => items.add(item.label));
+  }
+  return Array.from(items);
+}
+
+function localSharedWithSummary(report) {
+  const items = new Set();
+  const categories = new Set((report?.thirdParties || []).flatMap((party) => party.categories || []));
+  if (categories.has("analytics")) items.add("analytics vendors");
+  if (categories.has("ads")) items.add("advertising partners");
+  if (categories.has("identity")) items.add("sign-in services");
+  if (categories.has("consent")) items.add("cookie consent tools");
+  if (categories.has("support")) items.add("support providers");
+  if ((report?.thirdParties || []).length) items.add("service providers");
+  if (report?.content?.policySignals?.sharing?.length) {
+    report.content.policySignals.sharing.forEach((item) => items.add(item.label));
+  }
+  return Array.from(items);
+}
+
 function renderPrivacyLabel(report, analysis) {
   const node = el("privacyLabel");
   node.innerHTML = "";
@@ -634,11 +661,17 @@ function renderPrivacyLabel(report, analysis) {
 
   if (policy?.privacyLabel) {
     const label = policy.privacyLabel;
+    const dataCollected = analysis.source === "local"
+      ? localDataCollectedSummary(report).join(", ") || "Not visible from the current page"
+      : (label.collects.length ? label.collects.join(", ") : "none detected");
+    const shared = analysis.source === "local"
+      ? localSharedWithSummary(report).join(", ") || "Not visible from the current page"
+      : (label.shares.length ? label.shares.join(", ") : policy.saleOrSharing);
     node.append(
       labelItem("Privacy grade", label.grade, policy.risk.level + " policy risk"),
       labelItem("Confidence", confidence.label, confidence.detail),
-      labelItem("Data collected", label.collects.length ? label.collects.join(", ") : "No strong signal", "from policy text"),
-      labelItem("Shared or sold", label.shares.length ? label.shares.join(", ") : policy.saleOrSharing, "evidence-based"),
+      labelItem("Data collected", dataCollected, analysis.source === "local" ? "page-level estimate" : "from policy text"),
+      labelItem("Shared or sold", shared, analysis.source === "local" ? "page-level estimate" : "evidence-based"),
       labelItem("Retention", policy.retention?.[0] || label.retention, "policy wording"),
       labelItem("AI training", policy.aiTraining || "No explicit mention detected", "policy wording"),
       labelItem("Rights", label.rights.length ? label.rights.slice(0, 2).join("; ") : "Review region", "plain-language guide")
@@ -649,8 +682,8 @@ function renderPrivacyLabel(report, analysis) {
   node.append(
     labelItem("Privacy grade", "Pending", "click Build label"),
     labelItem("Confidence", confidence.label, confidence.detail),
-    labelItem("Data collected", report.plainEnglish.dataCollected.slice(0, 2).join(", "), "from the page"),
-    labelItem("Shared with", report.plainEnglish.sharedWith.slice(0, 2).join(", "), "from the page"),
+    labelItem("Data collected", "Open the policy to confirm", "from the page"),
+    labelItem("Shared with", "Open the policy to confirm", "from the page"),
     labelItem("Third parties", String(report.thirdParties?.length || 0), "network and page hints"),
     labelItem("AI training", "Unknown", "needs policy analysis"),
     labelItem("Retention", "Unknown", "needs policy analysis")
@@ -892,9 +925,25 @@ function renderEvidenceQA(report, analysis, question) {
   const node = el("evidenceAnswer");
   node.innerHTML = "";
 
+  const answer = answerEvidenceQuestion(report, analysis, question || el("evidenceQuestion").value);
+  const card = document.createElement("div");
+  card.className = "qaCard";
+
+  const heading = document.createElement("p");
+  heading.className = "qaLabel";
+  heading.textContent = "Answer";
+
+  const asked = document.createElement("p");
+  asked.className = "qaQuestion";
+  asked.textContent = `Question: ${question || el("evidenceQuestion").value || "Ask anything about the page"}`;
+
   const p = document.createElement("p");
-  p.textContent = answerEvidenceQuestion(report, analysis, question || el("evidenceQuestion").value);
-  node.appendChild(p);
+  p.className = "qaAnswer";
+  p.textContent = answer;
+
+  card.append(heading, asked, p);
+  node.appendChild(card);
+  node.scrollIntoView?.({ behavior: "smooth", block: "nearest" });
 }
 
 async function askEvidence(question) {
@@ -905,10 +954,11 @@ async function askEvidence(question) {
 
   const panel = el("evidencePanel");
   if (panel) {
-    panel.open = true;
+  panel.open = true;
   }
 
   renderEvidenceQA(currentReport, currentAnalysis, query);
+  el("evidenceAnswer")?.scrollIntoView?.({ behavior: "smooth", block: "start" });
   const answer = answerEvidenceQuestion(currentReport, currentAnalysis, query);
   try {
     await chrome.runtime.sendMessage({
@@ -1017,6 +1067,8 @@ function buildLocalPolicyAnalysis(report, region = "IN") {
   const grade = score >= 75 ? "C" : score >= 45 ? "B" : "A";
   const collected = (report.content?.policySignals?.dataCollected || []).map((item) => item.label);
   const shared = (report.content?.policySignals?.sharing || []).map((item) => item.label);
+  const collectedFallback = collected.length ? collected : localDataCollectedSummary(report);
+  const sharedFallback = shared.length ? shared : localSharedWithSummary(report);
   const risks = (report.risk?.reasons || []).slice(0, 5).map((reason) => ({
     severity: "Note",
     title: reason,
@@ -1032,8 +1084,8 @@ function buildLocalPolicyAnalysis(report, region = "IN") {
       risk: report.risk || { score: 0, level: "Low" },
       privacyLabel: {
         grade,
-        collects: collected.length ? collected : (report.plainEnglish?.dataCollected || []).slice(0, 3),
-        shares: shared.length ? shared : (report.plainEnglish?.sharedWith || []).slice(0, 3),
+        collects: collectedFallback.length ? collectedFallback : ["Not visible from the current page"],
+        shares: sharedFallback.length ? sharedFallback : ["Not visible from the current page"],
         retention: "Not stated on the visible page",
         rights: [
           `${region}: request access to your personal data.`,
@@ -1043,9 +1095,9 @@ function buildLocalPolicyAnalysis(report, region = "IN") {
       },
       riskPoints: risks,
       summary: [
-        "Local summary based on the current page and tracker signals.",
-        report.plainEnglish?.trackers || "No tracker summary available.",
-        report.plainEnglish?.oauth || "No OAuth summary available."
+        "Local estimate based on the current page and tracker signals.",
+        report.plainEnglish?.trackers || "Tracker details are visible in the scan.",
+        report.plainEnglish?.oauth || "OAuth details are visible in the scan."
       ],
       legal: {
         region,
@@ -1056,7 +1108,7 @@ function buildLocalPolicyAnalysis(report, region = "IN") {
         ]
       },
       aiTraining: "Unknown from visible page text",
-      saleOrSharing: shared.length ? shared.join(", ") : "No strong sharing signal found",
+      saleOrSharing: shared.length ? shared.join(", ") : "Not visible from the current page",
       retention: "Not stated on the visible page"
     },
     domainIntel: currentDomainIntel,

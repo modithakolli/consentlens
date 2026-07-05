@@ -243,18 +243,42 @@ function buildPlainEnglish(state) {
   const sharing = content.policySignals?.sharing || [];
   const oauthScopes = content.oauth?.scopes || [];
   const fingerprinting = content.fingerprinting || {};
+  const thirdParties = getThirdParties(state);
+  const trackerCategories = new Set(
+    thirdParties.flatMap((party) => party.categories || [])
+  );
+
+  const dataCollected = data.length
+    ? data.map((item) => item.label)
+    : (() => {
+        const items = [];
+        if (content.oauth?.hasOAuthProvider || oauthScopes.length) items.push("account access");
+        if (fingerprinting.detected) items.push("device or browser identifiers");
+        if (content.cookieBanner?.hasBanner) items.push("cookie and consent preferences");
+        if (thirdParties.length) items.push("browsing activity and page interactions");
+        return items.length ? items : ["No strong policy signal found on this page. Open the linked privacy policy for better coverage."];
+      })();
+
+  const sharedWith = sharing.length
+    ? sharing.map((item) => item.label)
+    : (() => {
+        const items = [];
+        if (trackerCategories.has("analytics")) items.push("analytics vendors");
+        if (trackerCategories.has("ads")) items.push("advertising partners");
+        if (trackerCategories.has("identity")) items.push("sign-in services");
+        if (trackerCategories.has("consent")) items.push("cookie consent tools");
+        if (trackerCategories.has("support")) items.push("support providers");
+        if (thirdParties.length) items.push("service providers");
+        return items.length ? Array.from(new Set(items)) : ["No strong sharing signal found in visible page text."];
+      })();
 
   return {
-    dataCollected: data.length
-      ? data.map((item) => item.label)
-      : ["No strong policy signal found on this page. Open the linked privacy policy for better coverage."],
-    sharedWith: sharing.length
-      ? sharing.map((item) => item.label)
-      : ["No strong sharing signal found in visible page text."],
+    dataCollected,
+    sharedWith,
     oauth: oauthScopes.length
       ? "This page includes OAuth scopes. Review them before granting access, especially mail, files, contacts, and offline access."
       : "No OAuth consent scope was visible on this page.",
-    trackers: getThirdParties(state).length
+    trackers: thirdParties.length
       ? "The page contacted third-party domains. Known ad, analytics, identity, and fingerprinting domains are highlighted below."
       : "No third-party requests have been observed yet for this tab.",
     fingerprinting: fingerprinting.detected
@@ -727,7 +751,8 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     setSettings({
       apiBaseUrl: String(message.settings?.apiBaseUrl || DEFAULT_SETTINGS.apiBaseUrl).replace(/\/+$/, ""),
       region: String(message.settings?.region || DEFAULT_SETTINGS.region).toUpperCase(),
-      syncObservations: Boolean(message.settings?.syncObservations)
+      syncObservations: Boolean(message.settings?.syncObservations),
+      syncObservationsExplicit: Boolean(message.settings?.syncObservationsExplicit)
     }).then(() => sendResponse({ ok: true }));
     return true;
   }

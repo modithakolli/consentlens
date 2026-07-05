@@ -29,8 +29,8 @@ body {
 }
 
 body.expandedView {
-  width: min(820px, 100vw);
-  max-width: 820px;
+  width: min(980px, calc(100vw - 8px));
+  max-width: 980px;
 }
 
 .shell {
@@ -93,6 +93,10 @@ body.expandedView {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
   gap: 8px;
+}
+
+body.expandedView .trustActions {
+  grid-template-columns: repeat(auto-fit, minmax(165px, 1fr));
 }
 
 .trustActions button {
@@ -553,6 +557,7 @@ details {
 
 .advancedPanel {
   border-color: #d6dce7;
+  width: 100%;
 }
 
 .advancedPanel > section,
@@ -599,6 +604,32 @@ details[open].advancedPanel {
   gap: 8px;
 }
 
+.qaCard {
+  display: grid;
+  gap: 6px;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #f9fbfe;
+}
+
+.qaLabel {
+  color: var(--medium);
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0;
+}
+
+.qaQuestion {
+  color: var(--ink);
+  font-weight: 600;
+}
+
+.qaAnswer {
+  color: var(--muted);
+}
+
 .graphSvg {
   width: 100%;
   min-height: 250px;
@@ -632,6 +663,11 @@ details[open].advancedPanel {
   body {
     width: 100%;
     min-width: 320px;
+  }
+
+  body.expandedView {
+    width: 100%;
+    max-width: 100%;
   }
 
   .decision {
