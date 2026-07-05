@@ -9,6 +9,8 @@
   --medium: #b26a00;
   --high: #c93535;
   --chip: #eef2f7;
+  --popup-width: 560px;
+  --popup-expanded-width: 920px;
 }
 
 * {
@@ -17,8 +19,9 @@
 
 body {
   margin: 0;
-  width: min(560px, 100vw);
-  max-width: 560px;
+  width: var(--popup-width);
+  min-width: var(--popup-width);
+  max-width: var(--popup-width);
   min-height: 560px;
   max-height: calc(100vh - 16px);
   background: var(--bg);
@@ -29,8 +32,9 @@ body {
 }
 
 body.expandedView {
-  width: min(980px, calc(100vw - 8px));
-  max-width: 980px;
+  width: var(--popup-expanded-width);
+  min-width: var(--popup-expanded-width);
+  max-width: var(--popup-expanded-width);
 }
 
 .shell {
@@ -96,7 +100,7 @@ body.expandedView {
 }
 
 body.expandedView .trustActions {
-  grid-template-columns: repeat(auto-fit, minmax(165px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
 }
 
 .trustActions button {
@@ -157,6 +161,17 @@ body.expandedView .trustActions {
   color: var(--ink);
   font: inherit;
   cursor: default;
+}
+
+.chipButton.actionChip {
+  cursor: pointer;
+  transition: transform 140ms ease, box-shadow 140ms ease, border-color 140ms ease;
+}
+
+.chipButton.actionChip:hover {
+  transform: translateY(-1px);
+  border-color: #c8d0de;
+  box-shadow: 0 4px 14px rgba(22, 32, 51, 0.06);
 }
 
 h1,
@@ -668,6 +683,7 @@ details[open].advancedPanel {
   body.expandedView {
     width: 100%;
     max-width: 100%;
+    min-width: 100%;
   }
 
   .decision {

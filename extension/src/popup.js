@@ -85,6 +85,20 @@ function renderChips(target, values, className = "chipButton") {
   });
 }
 
+function renderActionChips(target, values) {
+  const node = el(target);
+  node.innerHTML = "";
+  const items = values?.length ? values : ["None"];
+  items.slice(0, 4).forEach((value) => {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "chipButton actionChip";
+    button.textContent = value;
+    button.addEventListener("click", () => handleDecisionAction(value));
+    node.appendChild(button);
+  });
+}
+
 function confidenceSummary(report, analysis) {
   if (analysis?.source === "local") {
     return {
@@ -194,7 +208,29 @@ function renderDecisionSummary(report, analysis) {
   el("decisionVerdict").textContent = summary.verdict;
   el("decisionText").textContent = summary.text;
   renderChips("decisionRisks", summary.risks);
-  renderChips("decisionActions", summary.actions);
+  renderActionChips("decisionActions", summary.actions);
+}
+
+function handleDecisionAction(action) {
+  const text = String(action || "").toLowerCase();
+  if (text.includes("policy") || text.includes("skim")) {
+    revealSection("policySection");
+    return;
+  }
+  if (text.includes("sharing") || text.includes("controls")) {
+    revealSection("privacyLabelSection");
+    return;
+  }
+  if (text.includes("comfortable") || text.includes("continue")) {
+    document.body.classList.remove("expandedView");
+    const advanced = el("advancedPanel");
+    if (advanced) {
+      advanced.open = false;
+    }
+    window.close();
+    return;
+  }
+  revealSection("privacyLabelSection");
 }
 
 function buildPlainEnglishLines(report, analysis) {
@@ -892,30 +928,50 @@ function answerEvidenceQuestion(report, analysis, question) {
   const q = String(question || "").toLowerCase().trim();
   const chunks = [];
   const riskLine = `Current page risk: ${report.risk.level} (${report.risk.score}/100).`;
-  chunks.push(riskLine);
+  const collected = (analysis?.policy?.privacyLabel?.collects || report.plainEnglish.dataCollected || []).slice(0, 3);
+  const shared = (analysis?.policy?.privacyLabel?.shares || report.plainEnglish.sharedWith || []).slice(0, 3);
+  const rights = analysis?.policy?.privacyLabel?.rights || [];
 
-  if (!q || /why|risk|danger|safe/.test(q)) {
+  const wantsRisk = !q || /why|risk|danger|safe/.test(q);
+  const wantsData = /data|collect|share|who gets access|who may reach/.test(q);
+  const wantsOauth = /oauth|google|microsoft|apple|github|login|account/.test(q);
+  const wantsFingerprint = /fingerprint|tracking|tracker/.test(q);
+  const wantsRights = /delete|export|request|rights|access/.test(q);
+
+  if (wantsRisk) {
+    chunks.push(riskLine);
     chunks.push(report.risk.reasons.length ? `Main reasons: ${report.risk.reasons.join(" ")}` : "No major risk reasons were detected from the available signals.");
+    if (analysis?.policy?.privacyLabel) {
+      chunks.push(`Policy label: ${analysis.policy.privacyLabel.grade}.`);
+    }
   }
 
-  if (/data|collect|share/.test(q)) {
-    chunks.push(`Likely collected: ${report.plainEnglish.dataCollected.slice(0, 3).join(", ")}.`);
-    chunks.push(`Likely shared with: ${report.plainEnglish.sharedWith.slice(0, 3).join(", ")}.`);
+  if (wantsData) {
+    chunks.push(collected.length ? `Likely collected: ${collected.join(", ")}.` : "The visible policy does not clearly say what is collected.");
+    chunks.push(shared.length ? `Likely shared with: ${shared.join(", ")}.` : "The visible policy does not clearly say who receives the data.");
   }
 
-  if (/oauth|google|microsoft|apple|github|login/.test(q)) {
+  if (wantsOauth) {
     chunks.push(report.plainEnglish.oauth);
     if (report.content?.oauth?.purposeMismatch?.detected) {
       chunks.push(`Purpose mismatch: ${report.content.oauth.purposeMismatch.reason}`);
     }
   }
 
-  if (/fingerprint|tracking|tracker/.test(q)) {
+  if (wantsFingerprint) {
     chunks.push(report.plainEnglish.fingerprinting);
   }
 
-  if (analysis?.policy?.privacyLabel) {
-    chunks.push(`Policy label: ${analysis.policy.privacyLabel.grade}, with rights that may include ${analysis.policy.privacyLabel.rights.slice(0, 2).join("; ")}.`);
+  if (wantsRights) {
+    if (rights.length) {
+      chunks.push(`Rights mentioned: ${rights.slice(0, 2).join("; ")}.`);
+    } else {
+      chunks.push("The current scan does not show a clear rights summary yet.");
+    }
+  }
+
+  if (!chunks.length) {
+    chunks.push("Open the policy or Ask a question about data, sharing, account access, or tracking.");
   }
 
   return chunks.join(" ");
@@ -933,15 +989,11 @@ function renderEvidenceQA(report, analysis, question) {
   heading.className = "qaLabel";
   heading.textContent = "Answer";
 
-  const asked = document.createElement("p");
-  asked.className = "qaQuestion";
-  asked.textContent = `Question: ${question || el("evidenceQuestion").value || "Ask anything about the page"}`;
-
   const p = document.createElement("p");
   p.className = "qaAnswer";
   p.textContent = answer;
 
-  card.append(heading, asked, p);
+  card.append(heading, p);
   node.appendChild(card);
   node.scrollIntoView?.({ behavior: "smooth", block: "nearest" });
 }
