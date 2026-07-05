@@ -9,19 +9,25 @@
   --medium: #b26a00;
   --high: #c93535;
   --chip: #eef2f7;
-  --popup-width: 760px;
-  --popup-expanded-width: 1120px;
+  --popup-width: 1120px;
+  --popup-expanded-width: 1360px;
 }
 
 * {
   box-sizing: border-box;
 }
 
+html {
+  width: min(var(--popup-width), calc(100vw - 12px));
+  min-width: min(var(--popup-width), calc(100vw - 12px));
+  max-width: min(var(--popup-width), calc(100vw - 12px));
+}
+
 body {
   margin: 0;
-  width: var(--popup-width);
-  min-width: var(--popup-width);
-  max-width: var(--popup-width);
+  width: min(var(--popup-width), calc(100vw - 12px));
+  min-width: min(var(--popup-width), calc(100vw - 12px));
+  max-width: min(var(--popup-width), calc(100vw - 12px));
   min-height: 560px;
   max-height: calc(100vh - 16px);
   background: var(--bg);
@@ -32,9 +38,9 @@ body {
 }
 
 body.expandedView {
-  width: var(--popup-expanded-width);
-  min-width: var(--popup-expanded-width);
-  max-width: var(--popup-expanded-width);
+  width: min(var(--popup-expanded-width), calc(100vw - 12px));
+  min-width: min(var(--popup-expanded-width), calc(100vw - 12px));
+  max-width: min(var(--popup-expanded-width), calc(100vw - 12px));
 }
 
 .shell {
