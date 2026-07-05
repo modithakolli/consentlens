@@ -1,7 +1,8 @@
 const DEFAULTS = {
   apiBaseUrl: "http://localhost:8787",
   region: "IN",
-  syncObservations: false
+  syncObservations: true,
+  syncObservationsExplicit: false
 };
 
 function el(id) {
@@ -12,7 +13,8 @@ function readValues() {
   return {
     apiBaseUrl: el("apiBaseUrl").value.trim() || DEFAULTS.apiBaseUrl,
     region: (el("region").value.trim() || DEFAULTS.region).toUpperCase(),
-    syncObservations: Boolean(el("syncObservations").checked)
+    syncObservations: Boolean(el("syncObservations").checked),
+    syncObservationsExplicit: true
   };
 }
 
@@ -41,7 +43,7 @@ async function loadSettings() {
   const settings = response.ok ? response.settings : DEFAULTS;
   el("apiBaseUrl").value = settings.apiBaseUrl || DEFAULTS.apiBaseUrl;
   el("region").value = settings.region || DEFAULTS.region;
-  el("syncObservations").checked = Boolean(settings.syncObservations);
+  el("syncObservations").checked = settings.syncObservationsExplicit ? Boolean(settings.syncObservations) : true;
 }
 
 async function saveSettings() {

@@ -28,11 +28,17 @@ body {
   overflow-y: auto;
 }
 
+body.expandedView {
+  width: min(820px, 100vw);
+  max-width: 820px;
+}
+
 .shell {
   display: grid;
   gap: 12px;
   padding: 14px;
   min-height: 100%;
+  width: 100%;
 }
 
 .topbar {
@@ -95,6 +101,20 @@ body {
   width: 100%;
   white-space: normal;
   line-height: 1.2;
+}
+
+#viewDetails {
+  border-color: #d7deea;
+}
+
+#whyRisk {
+  border-color: #e7cf91;
+  background: #fffaf0;
+}
+
+#whatCanIDo {
+  border-color: #bfdcc9;
+  background: #f4fbf6;
 }
 
 .trustNote {
@@ -202,6 +222,10 @@ article:hover,
   grid-template-columns: minmax(90px, 1fr) 130px auto;
   align-items: center;
   gap: 10px;
+}
+
+body.expandedView .risk {
+  grid-template-columns: minmax(90px, 1fr) 160px auto;
 }
 
 .eyebrow {
@@ -457,6 +481,69 @@ a:hover {
   color: var(--muted);
 }
 
+.riskBars {
+  display: grid;
+  gap: 10px;
+}
+
+.riskBar {
+  display: grid;
+  gap: 6px;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fff;
+  transition: transform 140ms ease, box-shadow 140ms ease, border-color 140ms ease;
+}
+
+.riskBar:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 14px rgba(22, 32, 51, 0.06);
+  border-color: #cad3e2;
+}
+
+.riskBarTop {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: baseline;
+}
+
+.riskBarLabel {
+  font-weight: 600;
+}
+
+.riskBarValue {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.riskBarTrack {
+  height: 8px;
+  border-radius: 999px;
+  background: #edf1f7;
+  overflow: hidden;
+}
+
+.riskBarFill {
+  height: 100%;
+  width: 0;
+  border-radius: inherit;
+  transition: width 260ms ease;
+}
+
+.riskBarFill.low {
+  background: var(--low);
+}
+
+.riskBarFill.medium {
+  background: var(--medium);
+}
+
+.riskBarFill.high {
+  background: var(--high);
+}
+
 details {
   background: var(--panel);
   border: 1px solid var(--line);
@@ -562,7 +649,8 @@ details[open].advancedPanel {
 
   .grid,
   .labelGrid,
-  .stats {
+  .stats,
+  .risk {
     grid-template-columns: 1fr;
   }
 }

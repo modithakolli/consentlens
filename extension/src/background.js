@@ -3,7 +3,8 @@ importScripts("rules.js");
 const DEFAULT_SETTINGS = {
   apiBaseUrl: "http://localhost:8787",
   region: "IN",
-  syncObservations: false
+  syncObservations: true,
+  syncObservationsExplicit: false
 };
 
 const tabState = new Map();
@@ -406,10 +407,12 @@ function storeActivityTimeline(report, risk) {
 function getSettings() {
   return new Promise((resolve) => {
     chrome.storage.local.get(DEFAULT_SETTINGS, (result) => {
+      const explicit = Boolean(result.syncObservationsExplicit);
       resolve({
         apiBaseUrl: String(result.apiBaseUrl || DEFAULT_SETTINGS.apiBaseUrl).replace(/\/+$/, ""),
         region: String(result.region || DEFAULT_SETTINGS.region).toUpperCase(),
-        syncObservations: Boolean(result.syncObservations ?? DEFAULT_SETTINGS.syncObservations)
+        syncObservations: explicit ? Boolean(result.syncObservations) : true,
+        syncObservationsExplicit: explicit
       });
     });
   });
@@ -580,7 +583,8 @@ chrome.runtime.onInstalled.addListener(() => {
     chrome.storage.local.set({
       apiBaseUrl: result.apiBaseUrl || DEFAULT_SETTINGS.apiBaseUrl,
       region: result.region || DEFAULT_SETTINGS.region,
-      syncObservations: result.syncObservations ?? DEFAULT_SETTINGS.syncObservations
+      syncObservations: result.syncObservations ?? DEFAULT_SETTINGS.syncObservations,
+      syncObservationsExplicit: result.syncObservationsExplicit ?? DEFAULT_SETTINGS.syncObservationsExplicit
     });
   });
   loadTrackerArchive();
@@ -617,9 +621,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     storeActivityTimeline(report, report.risk);
     observeTrackers(report);
     getSettings().then((settings) => {
-      if (settings.syncObservations) {
-        syncTrackerObservations(report, settings).catch(() => {});
-      }
+      syncTrackerObservations(report, settings).catch(() => {});
     });
     sendResponse({ ok: true });
     return true;

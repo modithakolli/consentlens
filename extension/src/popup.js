@@ -685,6 +685,61 @@ function renderSiteIntelligence(report) {
   );
 }
 
+function renderRiskBreakdown(report, analysis) {
+  const node = el("riskBreakdown");
+  if (!node) return;
+  node.innerHTML = "";
+
+  if (!report) {
+    const p = document.createElement("p");
+    p.className = "note";
+    p.textContent = "Refresh the page first to see the breakdown.";
+    node.appendChild(p);
+    return;
+  }
+
+  const policy = analysis?.policy || null;
+  const hasOAuth = Boolean(report.content?.oauth?.hasOAuthProvider || report.content?.oauth?.scopes?.length);
+  const hasFingerprinting = Boolean(report.content?.fingerprinting?.detected);
+  const cookieIssues = Boolean(report.risk?.reasons?.some((reason) => /cookie banner/i.test(reason)));
+  const sharingIssues = Boolean(policy?.privacyLabel?.shares?.length || report.content?.policySignals?.sharing?.length);
+  const behaviorSignals = report.thirdParties?.filter((party) => ["analytics", "ads", "identity", "risk"].some((category) => party.categories?.includes(category))).length || 0;
+
+  const items = [
+    { label: "Outside services", value: Math.min(100, (report.thirdParties?.length || 0) * 12), detail: `${report.thirdParties?.length || 0} domains`, tone: report.thirdParties?.length ? (report.thirdParties.length > 4 ? "medium" : "low") : "low" },
+    { label: "Tracking services", value: Math.min(100, behaviorSignals * 18), detail: `${behaviorSignals} likely trackers`, tone: behaviorSignals > 3 ? "high" : behaviorSignals > 1 ? "medium" : "low" },
+    { label: "Cookie choices", value: cookieIssues ? 70 : 10, detail: cookieIssues ? "Accept looks easier than Reject" : "No obvious imbalance", tone: cookieIssues ? "medium" : "low" },
+    { label: "Account access", value: hasOAuth ? 75 : 0, detail: hasOAuth ? "Sign-in scopes are visible" : "No OAuth request", tone: hasOAuth ? "medium" : "low" },
+    { label: "Fingerprinting", value: hasFingerprinting ? (report.content?.fingerprinting?.riskLevel === "High" ? 85 : 60) : 0, detail: hasFingerprinting ? "Device identification possible" : "No obvious signals", tone: hasFingerprinting ? "high" : "low" },
+    { label: "Policy sharing", value: sharingIssues ? 60 : 0, detail: sharingIssues ? "Sharing language is present" : "No strong sharing language", tone: sharingIssues ? "medium" : "low" }
+  ];
+
+  items.forEach((item) => {
+    const row = document.createElement("div");
+    row.className = "riskBar";
+
+    const top = document.createElement("div");
+    top.className = "riskBarTop";
+    const label = document.createElement("span");
+    label.className = "riskBarLabel";
+    label.textContent = item.label;
+    const value = document.createElement("span");
+    value.className = "riskBarValue";
+    value.textContent = `${item.detail} · ${item.value}/100`;
+    top.append(label, value);
+
+    const track = document.createElement("div");
+    track.className = "riskBarTrack";
+    const fill = document.createElement("div");
+    fill.className = `riskBarFill ${item.tone}`;
+    fill.style.width = `${item.value}%`;
+    track.appendChild(fill);
+
+    row.append(top, track);
+    node.appendChild(row);
+  });
+}
+
 function renderTimeline(timeline) {
   const node = el("privacyTimeline");
   node.innerHTML = "";
@@ -1031,6 +1086,7 @@ function setRefreshBusy(isBusy) {
 }
 
 function setSimpleView() {
+  document.body.classList.remove("expandedView");
   ["advancedPanel", "evidencePanel", "dataRightsSection"].forEach((id) => {
     const node = el(id);
     if (node) node.open = false;
@@ -1038,6 +1094,7 @@ function setSimpleView() {
 }
 
 function revealSection(sectionId, detailsId = "advancedPanel") {
+  document.body.classList.add("expandedView");
   const details = el(detailsId);
   if (details) details.open = true;
   const target = el(sectionId);
@@ -1139,6 +1196,7 @@ async function refresh() {
     renderGraph(report, null);
     renderPrivacyLabel(report, null);
     renderSiteIntelligence(report);
+    renderRiskBreakdown(report, null);
     renderFingerprinting(report);
     renderDsar(report, null);
     renderEvidenceQA(report, null, el("evidenceQuestion").value);
@@ -1163,7 +1221,10 @@ el("openSettings").addEventListener("click", () => chrome.runtime.openOptionsPag
 el("copyDsar").addEventListener("click", copyDsar);
 el("askEvidence").addEventListener("click", () => askEvidence(el("evidenceQuestion").value));
 el("evidenceQuestion").addEventListener("input", () => renderEvidenceQA(currentReport, currentAnalysis));
-el("analyzeNutrition").addEventListener("click", () => el("analyzePolicy").click());
+el("analyzeNutrition").addEventListener("click", () => {
+  revealSection("privacyLabelSection");
+  el("analyzePolicy").click();
+});
 el("viewDetails").addEventListener("click", () => revealSection("privacyLabelSection"));
 el("whyRisk").addEventListener("click", () => revealSection("policySection"));
 el("whatCanIDo").addEventListener("click", () => revealSection("dataRightsSection"));
@@ -1182,6 +1243,8 @@ el("analyzePolicy").addEventListener("click", async () => {
   const tab = await getActiveTab();
   if (!tab?.id) return;
 
+  document.body.classList.add("expandedView");
+  el("advancedPanel") && (el("advancedPanel").open = true);
   const node = el("policyIntelligence");
   node.innerHTML = "";
   const loading = document.createElement("p");
@@ -1205,6 +1268,7 @@ el("analyzePolicy").addEventListener("click", async () => {
     renderGraph(currentReport, currentAnalysis);
     renderPrivacyLabel(currentReport, currentAnalysis);
     renderSiteIntelligence(currentReport);
+    renderRiskBreakdown(currentReport, currentAnalysis);
     renderFingerprinting(currentReport);
     renderDsar(currentReport, currentAnalysis);
     renderEvidenceQA(currentReport, currentAnalysis);
@@ -1220,10 +1284,14 @@ el("analyzePolicy").addEventListener("click", async () => {
   renderGraph(currentReport, currentAnalysis);
   renderPrivacyLabel(currentReport, currentAnalysis);
   renderSiteIntelligence(currentReport);
+  renderRiskBreakdown(currentReport, currentAnalysis);
   renderFingerprinting(currentReport);
   renderDsar(currentReport, currentAnalysis);
   renderEvidenceQA(currentReport, currentAnalysis);
   await loadMemory();
+});
+el("advancedPanel")?.addEventListener("toggle", (event) => {
+  document.body.classList.toggle("expandedView", Boolean(event.currentTarget.open));
 });
 refresh().catch((error) => {
   paragraph("plainEnglish", [`Unable to read this tab: ${error.message}`]);
