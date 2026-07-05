@@ -1130,15 +1130,7 @@ async function refresh() {
     renderDecisionSummary(report, null);
     list("dataCollected", report.plainEnglish.dataCollected, "No clear data collection signal found.");
     list("sharedWith", report.plainEnglish.sharedWith, "No clear sharing signal found.");
-    try {
-      const domainResponse = await chrome.runtime.sendMessage({
-        type: "CONSENTLENS_GET_DOMAIN_INTEL",
-        tabId: tab.id
-      });
-      currentDomainIntel = domainResponse.ok ? domainResponse.domains || [] : [];
-    } catch (error) {
-      currentDomainIntel = [];
-    }
+    currentDomainIntel = [];
 
     renderOAuth(report.content?.oauth);
     renderStats(report.risk);
@@ -1220,8 +1212,8 @@ el("analyzePolicy").addEventListener("click", async () => {
     return;
   }
 
-  currentAnalysis = response.analysis;
-  currentDomainIntel = response.analysis.domainIntel || currentDomainIntel;
+    currentAnalysis = response.analysis;
+    currentDomainIntel = response.analysis.domainIntel || currentDomainIntel;
   renderPlainEnglish(currentReport, currentAnalysis);
   renderDecisionSummary(currentReport, currentAnalysis);
   renderPolicyIntelligence(response.analysis);
