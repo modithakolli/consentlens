@@ -9,8 +9,8 @@
   --medium: #b26a00;
   --high: #c93535;
   --chip: #eef2f7;
-  --popup-width: 560px;
-  --popup-expanded-width: 920px;
+  --popup-width: 760px;
+  --popup-expanded-width: 1120px;
 }
 
 * {
