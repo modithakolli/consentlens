@@ -3,8 +3,8 @@
 
   const CONSENT_CONTAINER_SELECTOR = "[role='dialog'], dialog, [id*='cookie' i], [class*='cookie' i], [id*='consent' i], [class*='consent' i], [id*='privacy' i], [class*='privacy' i], [id*='onetrust' i], [class*='onetrust' i]";
   const CONSENT_CONTEXT_PATTERN = /cookie|consent|privacy|tracking|analytics|advertising|marketing|preferences|choice|choices|third-party|third party/i;
-  const ACCEPT_LABEL_PATTERN = /^(accept all|accept cookies?|accept selected|accept selection|accept optional|allow all|allow cookies?|allow selected|agree|i agree|save and continue|continue with recommended|ok|okay|got it)$/i;
-  const GENERIC_ACCEPT_PATTERN = /^(accept|allow|agree|ok|okay|got it|continue)$/i;
+  const ACCEPT_LABEL_PATTERN = /^(accept all|accept cookies?|accept selected|accept selection|accept optional|accept preferences|allow all|allow cookies?|allow selected|agree|i agree|save and continue|continue with recommended|ok|okay|got it|yes, i agree|yes, accept)$/i;
+  const GENERIC_ACCEPT_PATTERN = /^(accept|allow|agree|ok|okay|got it|continue|yes)$/i;
   const REJECT_OR_SETTINGS_PATTERN = /reject|decline|necessary|manage|settings|preferences|customize|limit/i;
 
   function getText(node) {
@@ -31,10 +31,30 @@
   function hasConsentContext(control, report) {
     const context = gatherContext(control);
     if (CONSENT_CONTEXT_PATTERN.test(context)) return true;
+
+    const container = control.closest(CONSENT_CONTAINER_SELECTOR) || control.closest("[role='dialog'], dialog, form, section, aside, div");
+    if (container) {
+      const containerText = ConsentLensPageScanner.nodeText(container);
+      const controls = container.querySelectorAll("button, a, input[type='button'], input[type='submit'], [role='button']");
+      const hasChoiceSet = controls.length >= 2;
+      if (hasChoiceSet && CONSENT_CONTEXT_PATTERN.test(containerText)) return true;
+      if (hasChoiceSet && /accept|reject|manage|settings|preferences|privacy|cookies|consent|tracking|analytics|advertising|marketing/i.test(containerText)) return true;
+      if (hasChoiceSet && /accept|okay|ok|agree|allow|continue/i.test(getText(control)) && /cookie|privacy|consent|tracking/i.test(containerText)) return true;
+    }
+
     const bannerText = String(report?.consentText || report?.signalText || "");
     if (CONSENT_CONTEXT_PATTERN.test(bannerText) && /accept|reject|manage|settings|preferences/i.test(context)) {
       return true;
     }
+
+    if (report?.cookieBanner?.hasBanner && (report?.cookieBanner?.hasAccept || report?.cookieBanner?.hasManage || report?.cookieBanner?.hasReject)) {
+      return true;
+    }
+
+    if ((report?.consentSummary || []).length && /accept|allow|agree|cookie|privacy|consent/i.test(gatherContext(control))) {
+      return true;
+    }
+
     return false;
   }
 

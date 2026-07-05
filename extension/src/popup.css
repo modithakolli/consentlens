@@ -17,7 +17,8 @@
 
 body {
   margin: 0;
-  width: 560px;
+  width: min(560px, 100vw);
+  max-width: 560px;
   min-height: 560px;
   background: var(--bg);
   color: var(--ink);
@@ -80,13 +81,16 @@ body {
 
 .trustActions {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
   gap: 8px;
 }
 
 .trustActions button {
   min-height: 40px;
   background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+  width: 100%;
+  white-space: normal;
+  line-height: 1.2;
 }
 
 .trustNote {
