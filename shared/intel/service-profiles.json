@@ -1,0 +1,9 @@
+{
+  "schemaVersion": "1.0.0",
+  "records": [
+    {"provider":"OneTrust","product":"Consent Management Platform","domains":["cookielaw.org","onetrust.com"],"purpose":"Consent management","evidenceUrl":"https://www.onetrust.com/products/cookie-consent/","effectiveDate":"2026-08-13","confidence":"high","applicability":"Web integrations","lastReviewed":"2026-08-13"},
+    {"provider":"Adobe","product":"Experience Cloud","domains":["adobedtm.com","omtrdc.net","demdex.net"],"purpose":"Analytics and tag management","evidenceUrl":"https://business.adobe.com/products/adobe-analytics.html","effectiveDate":"2026-08-13","confidence":"high","applicability":"Web integrations","lastReviewed":"2026-08-13"},
+    {"provider":"SAP Customer Data Cloud (Gigya)","product":"Customer Identity","domains":["gigya.com","gigya-cs.com"],"purpose":"Customer identity and access management","evidenceUrl":"https://www.sap.com/products/crm/customer-data-platform.html","effectiveDate":"2026-08-13","confidence":"high","applicability":"Web integrations","lastReviewed":"2026-08-13"},
+    {"provider":"Akamai mPulse","product":"Real User Monitoring","domains":["go-mpulse.net"],"purpose":"Website performance monitoring","evidenceUrl":"https://techdocs.akamai.com/mpulse/docs/welcome-mpulse","effectiveDate":"2026-08-13","confidence":"high","applicability":"Web integrations","lastReviewed":"2026-08-13"}
+  ]
+}

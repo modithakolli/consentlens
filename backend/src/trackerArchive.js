@@ -26,11 +26,6 @@ async function writeArchive(entries) {
 }
 
 function mergeEntry(existing, next) {
-  const observedSites = Array.from(new Set([
-    ...(existing?.observedSites || []),
-    ...(next?.observedSites || [])
-  ])).slice(0, 12);
-
   return {
     host: next.host,
     company: next.company || existing?.company || "Observed tracker",
@@ -42,12 +37,12 @@ function mergeEntry(existing, next) {
     known: Boolean(next.known || existing?.known),
     firstSeen: existing?.firstSeen || next.firstSeen || Date.now(),
     lastSeen: next.lastSeen || Date.now(),
-    observedSites,
+    contributorCount: (existing?.contributorCount || 0) + 1,
     requests: (existing?.requests || 0) + (next.requests || 0)
   };
 }
 
-export async function recordTrackerObservations(pageHost, observations) {
+export async function recordTrackerObservations(observations) {
   const archive = await readArchive();
   const map = new Map(archive.map((entry) => [entry.host, entry]));
 
@@ -67,7 +62,6 @@ export async function recordTrackerObservations(pageHost, observations) {
       known: Boolean(observation.known),
       firstSeen: current?.firstSeen || Date.now(),
       lastSeen: Date.now(),
-      observedSites: [...(current?.observedSites || []), pageHost].filter(Boolean),
       requests: Number(observation.requests || 0)
     });
 

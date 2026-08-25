@@ -107,3 +107,13 @@ That creates a zip you can upload to the Chrome Web Store or hand to a tester. T
 - Do not store full browsing history in the backend.
 - Store consent receipts locally by default.
 - Treat legal-rights text as awareness guidance, not legal advice or compliance verdicts.
+
+## Extension permissions
+
+- `activeTab` and `scripting` let ConsentLens scan the tab the person explicitly refreshes.
+- `storage` keeps local receipts, history, and settings on the device.
+- `tabs` associates a report with the active tab.
+- `webRequest` observes network destinations needed for the tracker report.
+- Broad host access currently supports live scanning. It is a deliberate audit item before distribution; future versions should prefer optional host access where Chrome permits it.
+
+The extension page CSP permits scripts only from the packaged extension. See `docs/ux-principles.md` for the interaction and evidence rules.

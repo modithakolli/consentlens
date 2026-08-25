@@ -4,6 +4,7 @@ import { fileURLToPath } from "node:url";
 
 const MODULE_DIR = dirname(fileURLToPath(import.meta.url));
 const SHARED_TRACKER_INTEL_PATH = resolve(MODULE_DIR, "../../extension/shared/tracker-intel.json");
+const SERVICE_PROFILES_PATH = resolve(MODULE_DIR, "../../shared/intel/service-profiles.json");
 const OBSERVED_TRACKER_PATH = resolve(MODULE_DIR, "../data/tracker-observations.json");
 
 function loadSharedTrackerRules() {
@@ -11,12 +12,31 @@ function loadSharedTrackerRules() {
     const raw = JSON.parse(readFileSync(SHARED_TRACKER_INTEL_PATH, "utf8"));
     return raw.flatMap((entry) => (entry.domains || []).map((domain) => ({
       company: entry.company,
+      category: entry.category || "unknown",
+      risk: entry.risk || "unknown",
       purpose: entry.purpose,
       hq: entry.hq,
       reputation: entry.reputation,
       domains: [domain]
     })));
   } catch (error) {
+    return [];
+  }
+}
+
+function loadServiceProfileRules() {
+  try {
+    const raw = JSON.parse(readFileSync(SERVICE_PROFILES_PATH, "utf8"));
+    return (raw.records || []).map((entry) => ({
+      company: entry.provider,
+      category: /consent/i.test(entry.purpose) ? "consent" : /identity|access/i.test(entry.purpose) ? "identity" : /analytics|monitoring|tag/i.test(entry.purpose) ? "analytics" : "utility",
+      risk: /consent/i.test(entry.purpose) ? "low" : "medium",
+      purpose: entry.purpose,
+      hq: "Not established",
+      reputation: `Source-backed; reviewed ${entry.lastReviewed}`,
+      domains: Array.isArray(entry.domains) ? entry.domains : []
+    }));
+  } catch {
     return [];
   }
 }
@@ -29,6 +49,8 @@ function loadObservedTrackerRules() {
       if (!host) return [];
       return [{
         company: entry.known ? entry.company : "Observed tracker",
+        category: entry.category || "unknown",
+        risk: entry.risk || "unknown",
         purpose: entry.known ? entry.purpose : `Observed on ${(entry.observedSites || []).length || 1} sites`,
         hq: entry.hq || "Unknown",
         reputation: entry.reputation || "Observed on this device",
@@ -41,6 +63,7 @@ function loadObservedTrackerRules() {
 }
 
 const SHARED_RULES = loadSharedTrackerRules();
+const SERVICE_PROFILE_RULES = loadServiceProfileRules();
 
 const COMPANY_RULES = [
   { company: "Google", purpose: "Analytics, ads, identity, measurement", hq: "United States", reputation: "High data collection footprint", domains: ["google.com", "googleapis.com", "clients6.google.com", "gstatic.com", "fonts.googleapis.com", "fonts.gstatic.com", "translate.google.com", "google.co.in", "apis.google.com", "play.google.com", "mail.google.com", "drive.google.com", "meet.google.com", "chat.google.com", "ssl.gstatic.com", "lh3.google.com", "ogs.google.com", "googleusercontent.com"] },
@@ -69,10 +92,15 @@ const COMPANY_RULES = [
   { company: "LinkedIn", purpose: "Advertising and identity", hq: "United States", reputation: "Professional identity services", domains: ["linkedin.com", "licdn.com", "snap.licdn.com", "px.ads.linkedin.com", "px4.ads.linkedin.com"] },
   { company: "Fingerprint", purpose: "Device fingerprinting and fraud detection", hq: "United States", reputation: "Device fingerprinting vendor", domains: ["fingerprint.com", "fingerprintjs.com"] },
   { company: "Cloudflare", purpose: "Security, performance, analytics", hq: "United States", reputation: "Infrastructure and performance provider", domains: ["cloudflare.com", "cloudflareinsights.com"] }
+  ,{ company: "Anthropic", category: "utility", risk: "low", purpose: "Claude application and asset delivery", hq: "United States", reputation: "AI product provider", domains: ["anthropic.com", "claude.ai", "s-cdn.anthropic.com", "assets-proxy.anthropic.com"] }
+  ,{ company: "Stripe", category: "payments", risk: "medium", purpose: "Payment processing and fraud prevention", hq: "United States", reputation: "Payment service provider", domains: ["stripe.com", "js.stripe.com", "m.stripe.network"] }
+  ,{ company: "Intercom", category: "support", risk: "medium", purpose: "Customer messaging and support", hq: "United States", reputation: "Support and messaging provider", domains: ["intercom.io", "widget.intercom.io", "intercomcdn.com"] }
+  ,{ company: "hCaptcha", category: "risk", risk: "low", purpose: "Bot detection and abuse prevention", hq: "United States", reputation: "Anti-abuse provider", domains: ["hcaptcha.com", "js.hcaptcha.com"] }
+  ,{ company: "SAP Customer Data Cloud (Gigya)", category: "identity", risk: "medium", purpose: "Customer identity and access management", hq: "Germany", reputation: "Identity provider", domains: ["gigya.com", "gigya-cs.com", "us1.gigya.com"] }
 ];
 
 function buildLookupRules() {
-  return [...SHARED_RULES, ...COMPANY_RULES, ...loadObservedTrackerRules()];
+  return [...SERVICE_PROFILE_RULES, ...SHARED_RULES, ...COMPANY_RULES, ...loadObservedTrackerRules()];
 }
 
 function normalizeHost(hostname) {
@@ -88,14 +116,28 @@ export function lookupDomain(hostname) {
   const rule = buildLookupRules().find((entry) => entry.domains.some((domain) => matches(hostname, domain)));
   return {
     host: normalizeHost(hostname),
-    company: rule?.company || "Unknown",
-    purpose: rule?.purpose || "Unknown third-party service",
-    hq: rule?.hq || "Unknown",
-    reputation: rule?.reputation || "Unknown",
+    company: rule?.company || "Unclassified third party",
+    category: rule?.category || "unknown",
+    risk: rule?.risk || "unknown",
+    purpose: rule?.purpose || "Observed network request; ConsentLens has not classified this provider yet.",
+    hq: rule?.hq || "Not established",
+    reputation: rule?.reputation || "Unclassified — not a safety judgement",
     known: Boolean(rule)
   };
 }
 
 export function getDomainIntel(domains) {
   return Array.from(new Set(domains.map(normalizeHost).filter(Boolean))).map(lookupDomain);
+}
+
+export function getTrackerIntel() {
+  return buildLookupRules().map((entry) => ({
+    company: entry.company || "Unknown",
+    category: entry.category || "unknown",
+    risk: entry.risk || "unknown",
+    purpose: entry.purpose || "Unknown third-party service",
+    hq: entry.hq || "Unknown",
+    reputation: entry.reputation || "Unknown",
+    domains: Array.isArray(entry.domains) ? entry.domains.slice() : []
+  }));
 }

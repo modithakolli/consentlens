@@ -11,10 +11,15 @@
   "background": {
     "service_worker": "src/background.js"
   },
+  "content_security_policy": {
+    "extension_pages": "script-src 'self'; object-src 'self'; base-uri 'self';"
+  },
   "content_scripts": [
     {
       "matches": ["<all_urls>"],
       "js": [
+        "src/storage.js",
+        "src/intel/service-profiles.js",
         "src/rules.js",
         "src/scanners/page.js",
         "src/scanners/consent.js",

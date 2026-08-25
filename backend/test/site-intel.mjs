@@ -24,4 +24,10 @@ assert.equal(intel.length, 3, "Expected three site intelligence rows");
 assert.ok(intel.some((item) => item.company === "Google"), "Google should appear in site intelligence");
 assert.ok(intel.some((item) => item.company === "OneTrust"), "OneTrust should appear in site intelligence");
 
+const deloitteStack = getDomainIntel(["cdn.cookielaw.org", "assets.adobedtm.com", "us1.gigya.com", "c.go-mpulse.net"]);
+assert.ok(deloitteStack.some((item) => item.company === "OneTrust"), "Deloitte fixture should identify OneTrust");
+assert.ok(deloitteStack.some((item) => item.company === "Adobe"), "Deloitte fixture should identify Adobe");
+assert.ok(deloitteStack.some((item) => item.company.includes("Gigya")), "Deloitte fixture should identify Gigya");
+assert.ok(deloitteStack.some((item) => item.company.includes("Akamai")), "Deloitte fixture should identify Akamai mPulse");
+
 console.log("Backend site intelligence smoke tests passed.");

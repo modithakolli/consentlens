@@ -55,7 +55,9 @@
     ],
     support: [
       "liveperson.net",
-      "lpsnmedia.net"
+      "lpsnmedia.net",
+      "intercom.io",
+      "intercomcdn.com"
     ],
     identity: [
       "accounts.google.com",
@@ -110,7 +112,15 @@
     { company: "OneTrust", category: "consent", risk: "low", purpose: "Consent management", hq: "United States", reputation: "Consent infrastructure provider", domains: ["cookielaw.org", "onetrust.com", "geolocation.onetrust.com"] },
     { company: "Cloudflare", category: "risk", risk: "low", purpose: "Security, performance, and anti-bot controls", hq: "United States", reputation: "Infrastructure and performance provider", domains: ["cloudflare.com", "cloudflareinsights.com", "static.cloudflareinsights.com"] },
     { company: "Amazon Web Services", category: "utility", risk: "low", purpose: "Cloud hosting and storage", hq: "United States", reputation: "Cloud infrastructure provider", domains: ["amazonaws.com", "cloudfront.net"] }
+    ,{ company: "Anthropic", category: "utility", risk: "low", purpose: "Claude application and asset delivery", hq: "United States", reputation: "AI product provider", domains: ["anthropic.com", "claude.ai", "anthropic.com", "s-cdn.anthropic.com", "assets-proxy.anthropic.com"] }
+    ,{ company: "Stripe", category: "payments", risk: "medium", purpose: "Payment processing and fraud prevention", hq: "United States", reputation: "Payment service provider", domains: ["stripe.com", "js.stripe.com", "m.stripe.network"] }
+    ,{ company: "Intercom", category: "support", risk: "medium", purpose: "Customer messaging and support", hq: "United States", reputation: "Support and messaging provider", domains: ["intercom.io", "widget.intercom.io", "intercomcdn.com"] }
+    ,{ company: "hCaptcha", category: "risk", risk: "low", purpose: "Bot detection and abuse prevention", hq: "United States", reputation: "Anti-abuse provider", domains: ["hcaptcha.com", "js.hcaptcha.com"] }
+    ,{ company: "SAP Customer Data Cloud (Gigya)", category: "identity", risk: "medium", purpose: "Customer identity and access management", hq: "Germany", reputation: "Identity provider", domains: ["gigya.com", "gigya-cs.com", "us1.gigya.com"] }
+    ,{ company: "Akamai mPulse", category: "analytics", risk: "medium", purpose: "Website performance monitoring", hq: "United States", reputation: "Performance measurement provider", domains: ["go-mpulse.net", "rum.hlx.page"] }
   ];
+
+  TRACKER_PROFILES.push(...(Array.isArray(globalScope.ConsentLensServiceProfiles) ? globalScope.ConsentLensServiceProfiles : []));
 
   const DATA_PATTERNS = [
     { id: "identity", label: "Identity details", terms: ["name", "email address", "phone number", "account information", "profile information", "information you provide"] },
@@ -186,12 +196,12 @@
     const profile = TRACKER_PROFILES.find((entry) => entry.domains.some((domain) => domainMatches(host, domain)));
     return {
       host,
-      company: profile?.company || "Unknown",
+      company: profile?.company || "Unclassified third party",
       category: profile?.category || (categorizeDomain(host)[0] || "unknown"),
       risk: profile?.risk || "unknown",
-      purpose: profile?.purpose || "Unknown third-party service",
-      hq: profile?.hq || "Unknown",
-      reputation: profile?.reputation || "Unknown",
+      purpose: profile?.purpose || "Observed network request; ConsentLens has not classified this provider yet.",
+      hq: profile?.hq || "Not established",
+      reputation: profile?.reputation || "Unclassified — not a safety judgement",
       known: Boolean(profile)
     };
   }

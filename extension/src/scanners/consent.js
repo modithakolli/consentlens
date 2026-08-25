@@ -34,6 +34,14 @@
     const acceptButtons = findVisibleControls(/accept all|allow all|i agree|accept cookies/i);
     const rejectButtons = findVisibleControls(/reject all|decline|necessary only|continue without accepting/i);
     const acceptEmphasis = acceptButtons.length > rejectButtons.length;
+    const darkPatterns = [];
+    if (hasBanner && hasAccept && !hasReject) darkPatterns.push({ id: "missing-reject", severity: "high", label: "No equally clear reject choice", evidence: "Accept was visible but a direct reject choice was not detected." });
+    if (hasHiddenReject) darkPatterns.push({ id: "hidden-reject", severity: "high", label: "Hidden reject option", evidence: "Reject language was present but no visible reject control was found." });
+    if (hasManage && !hasReject) darkPatterns.push({ id: "multi-step-reject", severity: "medium", label: "More steps to refuse", evidence: "Settings were offered but a direct reject choice was not detected." });
+    if (hasPreselectedOptionalToggles) darkPatterns.push({ id: "default-opt-in", severity: "high", label: "Optional tracking preselected", evidence: "An optional marketing, analytics, or partner toggle appeared enabled." });
+    if (acceptEmphasis) darkPatterns.push({ id: "accept-emphasis", severity: "medium", label: "Accept action emphasized", evidence: "More visible accept controls than reject controls were detected." });
+    if (/are you sure|you.?ll miss out|don.?t miss|no,? thanks|i don.?t care/i.test(lower)) darkPatterns.push({ id: "confirm-shaming", severity: "medium", label: "Potential confirm shaming", evidence: "The consent text appears to use guilt or loss framing." });
+    if (/legitimate interest/.test(lower) && !/object|opt.?out|withdraw/.test(lower)) darkPatterns.push({ id: "legitimate-interest-clarity", severity: "medium", label: "Legitimate-interest clarity gap", evidence: "Legitimate interest was mentioned without a visible objection or opt-out signal." });
 
     return {
       hasBanner,
@@ -45,7 +53,8 @@
       hasHiddenReject,
       hasPreselectedOptionalToggles,
       acceptEmphasis,
-      possibleDarkPattern: hasBanner && hasAccept && (!hasReject || hasHiddenReject || acceptEmphasis || hasPreselectedOptionalToggles)
+      darkPatterns,
+      possibleDarkPattern: darkPatterns.length > 0
     };
   }
 
@@ -130,6 +139,61 @@
     return summary;
   }
 
+  function getText(node) {
+    return String(
+      node?.innerText ||
+      node?.value ||
+      node?.getAttribute?.("aria-label") ||
+      node?.getAttribute?.("title") ||
+      ""
+    ).replace(/\s+/g, " ").trim();
+  }
+
+  function gatherContext(control) {
+    const chunks = [];
+    let current = control;
+    for (let depth = 0; current && depth < 5; depth += 1, current = current.parentElement) {
+      const text = ConsentLensPageScanner.nodeText(current);
+      if (text) chunks.push(text);
+    }
+    return chunks.join(" ").slice(0, 8000);
+  }
+
+  function consentClickAllowed(target, report) {
+    const control = target?.closest?.("button, a, input[type='button'], input[type='submit'], [role='button']");
+    if (!control) return false;
+
+    const label = getText(control);
+    if (!label || label.length > 80) return false;
+
+    const lower = label.toLowerCase();
+    const acceptLike = /^(accept all|accept cookies?|accept selected|accept selection|accept optional|accept preferences|allow all|allow cookies?|allow selected|agree|i agree|save and continue|continue with recommended|ok|okay|got it|yes, i agree|yes, accept)$/i.test(label)
+      || (/^(accept|allow|agree|ok|okay|got it|continue|yes)$/i.test(label) && /cookie|consent|privacy|tracking|analytics|advertising|marketing|preferences|choice|choices|third-party|third party/i.test(gatherContext(control)));
+    const rejectLike = /reject|decline|necessary|manage|settings|preferences|customize|limit/i.test(label);
+    if (rejectLike || !acceptLike) return false;
+
+    const context = gatherContext(control);
+    if (/cookie|consent|privacy|tracking|analytics|advertising|marketing|preferences|choice|choices|third-party|third party/i.test(context)) return true;
+
+    const container = control.closest?.("[role='dialog'], dialog, form, section, aside, div");
+    if (container) {
+      const containerText = ConsentLensPageScanner.nodeText(container);
+      const controls = container.querySelectorAll?.("button, a, input[type='button'], input[type='submit'], [role='button']") || [];
+      if (controls.length >= 2 && /accept|reject|manage|settings|preferences|privacy|cookies|consent|tracking|analytics|advertising|marketing/i.test(containerText)) {
+        return true;
+      }
+      if (controls.length >= 2 && /accept|okay|ok|agree|allow|continue/i.test(label) && /cookie|privacy|consent|tracking/i.test(containerText)) {
+        return true;
+      }
+    }
+
+    if (report?.cookieBanner?.hasBanner && (report?.cookieBanner?.hasAccept || report?.cookieBanner?.hasManage || report?.cookieBanner?.hasReject)) {
+      return true;
+    }
+
+    return false;
+  }
+
   function scan(page) {
     const consentText = findConsentText();
     const focusedSignalText = signalText(page.fullText, consentText);
@@ -149,6 +213,7 @@
 
   globalScope.ConsentLensConsentScanner = {
     scan,
-    buildSummary
+    buildSummary,
+    consentClickAllowed
   };
 })(window);

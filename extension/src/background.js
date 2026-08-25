@@ -1,9 +1,9 @@
-importScripts("rules.js");
+importScripts("storage.js", "intel/service-profiles.js", "rules.js");
 
 const DEFAULT_SETTINGS = {
   apiBaseUrl: "http://localhost:8787",
   region: "IN",
-  syncObservations: true,
+  syncObservations: false,
   syncObservationsExplicit: false
 };
 
@@ -33,8 +33,8 @@ function loadTrackerArchive() {
   return new Promise((resolve) => {
     chrome.storage.local.get({ trackerArchive: [] }, (result) => {
       trackerArchiveCache.clear();
-      (Array.isArray(result.trackerArchive) ? result.trackerArchive : []).forEach((entry) => {
-        if (entry?.host) {
+      ConsentLensStorage.safeArray(result.trackerArchive, "trackerArchive").map(ConsentLensStorage.tracker).forEach((entry) => {
+        if (entry.host) {
           trackerArchiveCache.set(entry.host, entry);
         }
       });
@@ -272,7 +272,7 @@ function buildPlainEnglish(state) {
         return items.length ? Array.from(new Set(items)) : ["No strong sharing signal found in visible page text."];
       })();
 
-  return {
+  return ConsentLensStorage.tracker({
     dataCollected,
     sharedWith,
     oauth: oauthScopes.length
@@ -284,7 +284,7 @@ function buildPlainEnglish(state) {
     fingerprinting: fingerprinting.detected
       ? `Possible fingerprinting signals detected: ${fingerprinting.evidence.slice(0, 3).join(", ")}.`
       : "No obvious fingerprinting signals were detected from visible page text or known risky domains."
-  };
+  });
 }
 
 function updateBadge(tabId, report) {
@@ -435,7 +435,7 @@ function getSettings() {
       resolve({
         apiBaseUrl: String(result.apiBaseUrl || DEFAULT_SETTINGS.apiBaseUrl).replace(/\/+$/, ""),
         region: String(result.region || DEFAULT_SETTINGS.region).toUpperCase(),
-        syncObservations: explicit ? Boolean(result.syncObservations) : true,
+      syncObservations: explicit ? Boolean(result.syncObservations) : false,
         syncObservationsExplicit: explicit
       });
     });
@@ -453,9 +453,7 @@ function syncTrackerObservations(report, settings) {
     return Promise.resolve();
   }
 
-  const pageHost = report.pageHost || safeHost(report.pageUrl || "");
   const payload = {
-    pageHost,
     observations: (report.thirdParties || []).map((party) => ({
       host: party.host,
       company: party.company || "Observed tracker",
@@ -465,7 +463,6 @@ function syncTrackerObservations(report, settings) {
       hq: party.hq || "Unknown",
       reputation: party.reputation || "Unknown",
       known: Boolean(party.known),
-      observedSites: [pageHost].filter(Boolean),
       requests: party.count || 0
     }))
   };

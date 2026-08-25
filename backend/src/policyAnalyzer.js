@@ -38,7 +38,7 @@ function ipv4InRange(address, start, end) {
   return value >= ipv4ToNumber(start) && value <= ipv4ToNumber(end);
 }
 
-function isBlockedIp(address) {
+export function isBlockedIp(address) {
   const kind = net.isIP(address);
   if (kind === 4) {
     return address === "0.0.0.0"

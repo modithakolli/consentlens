@@ -43,6 +43,7 @@ node server.js
 
 - `GET /health`
 - `GET /tracker-archive`
+- `POST /company-claims` (manual review intake; never self-verifies a company)
 - `POST /analyze-policy`
 - `POST /domain-intel`
 - `POST /site-intel`
@@ -66,6 +67,8 @@ The site and app intelligence routes return:
 
 ## Privacy posture
 
-The extension should only call the backend when the user asks for deeper policy analysis. The backend receives the policy URL and active-site context, not the user's full browsing history.
+The extension should only call the backend when the user asks for deeper policy analysis. Optional tracker contributions contain aggregated third-party provider observations only; they do not include page URLs, titles, receipts, policy text, or account data.
+
+Company claims are a review queue, not a badge endpoint. A reviewer must validate domain ownership and public evidence before any future verified status can be issued, renewed, suspended, or revoked.
 
 For production, keep `ALLOWED_ORIGINS` tight, set the body size and rate limit values, and point the extension at the deployed API through the popup settings page instead of hardcoding URLs in the extension bundle.

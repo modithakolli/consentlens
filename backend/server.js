@@ -5,6 +5,7 @@ import { lookupApp } from "./src/appIntel.js";
 import { getDomainIntel, lookupDomain } from "./src/domainIntel.js";
 import { legalRightsForRegion } from "./src/legalRights.js";
 import { getTrackerObservations, recordTrackerObservations } from "./src/trackerArchive.js";
+import { submitCompanyClaim } from "./src/companyClaims.js";
 
 const PORT = Number(process.env.PORT || 8787);
 const APP_VERSION = "0.2.0";
@@ -172,6 +173,7 @@ async function handle(request, response) {
         "/app-intel",
         "/tracker-observations",
         "/tracker-archive",
+        "/company-claims",
         "/analyze-policy"
       ]
     }, origin || "*");
@@ -296,15 +298,29 @@ async function handle(request, response) {
     }
 
     const body = await readJson(request);
-    const pageHost = stringValue(body.pageHost);
     const observations = Array.isArray(body.observations) ? body.observations.slice(0, 100) : [];
-    if (!pageHost || !observations.length) {
-      sendJson(response, 400, { ok: false, error: "pageHost and observations are required" }, origin || "*");
+    if (!observations.length) {
+      sendJson(response, 400, { ok: false, error: "observations must be a non-empty array" }, origin || "*");
       return;
     }
 
-    await recordTrackerObservations(pageHost, observations);
+    await recordTrackerObservations(observations);
     sendJson(response, 200, { ok: true }, origin || "*");
+    return;
+  }
+
+  if (request.method === "POST" && url.pathname === "/company-claims") {
+    const limit = allowRequest(request, "company-claims", 8);
+    if (!limit.allowed) {
+      sendJson(response, 429, { ok: false, error: "Rate limit exceeded" }, origin || "*");
+      return;
+    }
+    try {
+      const claim = await submitCompanyClaim(await readJson(request));
+      sendJson(response, 202, { ok: true, claim, message: "Claim submitted for manual evidence review. This does not create a verified status." }, origin || "*");
+    } catch (error) {
+      sendJson(response, 400, { ok: false, error: error.message }, origin || "*");
+    }
     return;
   }
 

@@ -333,6 +333,7 @@ function renderOAuth(oauth) {
       scopes.appendChild(chip);
     });
     node.appendChild(scopes);
+    node.appendChild(renderOAuthHeatmap(oauth));
   }
 
   if (oauth.highRiskScopes?.length) {
@@ -457,6 +458,39 @@ function renderLinks(links, inferredLinks = []) {
   });
 }
 
+function oauthRisk(scope) {
+  const value = String(scope || "").toLowerCase();
+  if (/mail\.readwrite|gmail\.modify|gmail\.send|files\.readwrite|drive$/.test(value)) return ["Critical", "Can change or broadly access sensitive content."];
+  if (/gmail\.readonly|drive\.readonly|contacts|calendar|mail\.read/.test(value)) return ["High", "Can read sensitive personal or work information."];
+  if (/offline_access/.test(value)) return ["Medium", "Access can continue after you leave unless you revoke it."];
+  return ["Low", "Basic identity or profile access."];
+}
+
+function renderOAuthHeatmap(oauth) {
+  const wrap = document.createElement("div");
+  wrap.className = "oauthHeatmap";
+  const heading = document.createElement("p");
+  heading.className = "note";
+  heading.textContent = "Permission heatmap";
+  wrap.appendChild(heading);
+  (oauth.scopes || []).forEach((scope) => {
+    const [level, detail] = oauthRisk(scope);
+    const row = document.createElement("button");
+    row.type = "button";
+    row.className = `oauthScope ${level.toLowerCase()}`;
+    row.title = detail;
+    row.setAttribute("aria-label", `${scope}: ${level}. ${detail}`);
+    row.innerHTML = "";
+    const name = document.createElement("strong");
+    name.textContent = scope;
+    const label = document.createElement("span");
+    label.textContent = level;
+    row.append(name, label);
+    wrap.appendChild(row);
+  });
+  return wrap;
+}
+
 function domainIntelMap() {
   return new Map(currentDomainIntel.map((item) => [item.host, item]));
 }
@@ -497,13 +531,21 @@ function svgText(svg, x, y, text, className = "flowText") {
   svg.appendChild(node);
 }
 
-function svgNode(svg, x, y, label, sublabel, color) {
+function svgNode(svg, x, y, label, sublabel, color, onClick) {
   const circle = document.createElementNS("http://www.w3.org/2000/svg", "circle");
   circle.setAttribute("cx", x);
   circle.setAttribute("cy", y);
   circle.setAttribute("r", 31);
   circle.setAttribute("fill", color);
   circle.setAttribute("class", "flowNode");
+  if (onClick) {
+    circle.setAttribute("role", "button");
+    circle.setAttribute("tabindex", "0");
+    circle.addEventListener("click", onClick);
+    circle.addEventListener("keydown", (event) => {
+      if (event.key === "Enter" || event.key === " ") onClick();
+    });
+  }
   svg.appendChild(circle);
   svgText(svg, x, y - 2, label);
   svgText(svg, x, y + 14, sublabel, "flowSubtext");
@@ -540,6 +582,9 @@ function renderGraph(report, analysis) {
   svgNode(svg, 82, centerY, "You", "browse", "#eef8f1");
   svgNode(svg, centerX, centerY, report.pageHost || "This site", "site", "#edf6ff");
   svgLine(svg, 113, centerY, centerX - 31, centerY);
+  const evidence = document.createElement("p");
+  evidence.className = "note";
+  evidence.textContent = "Select a provider node to see the observed data path and evidence.";
 
   thirdParties.forEach((party, index) => {
     const intel = resolvePartyIntel(party);
@@ -555,11 +600,15 @@ function renderGraph(report, analysis) {
           ? "#f2edf9"
           : "#f8fafc";
     svgLine(svg, centerX + Math.cos(angle) * 34, centerY + Math.sin(angle) * 34, x - Math.cos(angle) * 34, y - Math.sin(angle) * 34);
-    const sublabel = intel.known ? intel.company : intel.observed ? `Observed / ${category}` : `${category} / ${intel.risk}`;
-    svgNode(svg, x, y, party.host, sublabel, color);
+    const recipient = category === "ads" ? "advertising partners" : category === "analytics" ? "analytics provider" : category === "identity" ? "identity provider" : category === "consent" ? "consent provider" : "service provider";
+    const sublabel = intel.known ? intel.company : intel.observed ? `Observed / ${category}` : `Unclassified / ${category}`;
+    svgNode(svg, x, y, party.host, sublabel, color, () => {
+      evidence.textContent = `Observed path: you → ${report.pageHost || "this site"} → ${intel.company} → ${recipient}. ${intel.evidence || "This is an observed network relationship, not proof that personal data was transferred."}`;
+    });
   });
 
   node.appendChild(svg);
+  node.appendChild(evidence);
 }
 
 function renderPolicyIntelligence(analysis) {

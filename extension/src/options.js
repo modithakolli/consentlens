@@ -1,7 +1,7 @@
 const DEFAULTS = {
   apiBaseUrl: "http://localhost:8787",
   region: "IN",
-  syncObservations: true,
+  syncObservations: false,
   syncObservationsExplicit: false
 };
 
@@ -43,7 +43,7 @@ async function loadSettings() {
   const settings = response.ok ? response.settings : DEFAULTS;
   el("apiBaseUrl").value = settings.apiBaseUrl || DEFAULTS.apiBaseUrl;
   el("region").value = settings.region || DEFAULTS.region;
-  el("syncObservations").checked = settings.syncObservationsExplicit ? Boolean(settings.syncObservations) : true;
+  el("syncObservations").checked = settings.syncObservationsExplicit ? Boolean(settings.syncObservations) : false;
 }
 
 async function saveSettings() {
