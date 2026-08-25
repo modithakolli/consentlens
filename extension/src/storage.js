@@ -6,7 +6,7 @@
   }
 
   function host(value) {
-    return string(value, 253).replace(/^www\./, "").toLowerCase();
+    return string(value, 253).toLowerCase().replace(/^www\./, "");
   }
 
   function safeArray(value, key) {
@@ -22,7 +22,7 @@
     const apiBaseUrl = string(source.apiBaseUrl || defaults.apiBaseUrl, 500).replace(/\/+$/, "");
     return {
       apiBaseUrl: /^https?:\/\//i.test(apiBaseUrl) ? apiBaseUrl : defaults.apiBaseUrl,
-      region: string(source.region || defaults.region, 8).toUpperCase() || defaults.region,
+      region: string(source.region || defaults.region, 8).toUpperCase().replace(/[^A-Z]/g, "") || defaults.region,
       syncObservations: Boolean(source.syncObservations),
       syncObservationsExplicit: Boolean(source.syncObservationsExplicit)
     };
@@ -38,5 +38,17 @@
     };
   }
 
-  globalScope.ConsentLensStorage = { safeArray, settings, tracker, string, strings };
+  function receipt(entry) {
+    return { pageUrl: string(entry?.pageUrl, 1000), pageHost: host(entry?.pageHost), actionLabel: string(entry?.actionLabel, 120), acceptedAt: Number(entry?.acceptedAt) || Date.now() };
+  }
+
+  function timeline(entry) {
+    return { key: string(entry?.key, 300), pageUrl: string(entry?.pageUrl, 1000), pageHost: host(entry?.pageHost), title: string(entry?.title, 300), score: Math.min(100, Math.max(0, Number(entry?.score) || 0)), level: string(entry?.level, 20), thirdParties: Math.max(0, Number(entry?.thirdParties) || 0), topTrackers: safeArray(entry?.topTrackers, "topTrackers").slice(0, 10), fingerprinting: Boolean(entry?.fingerprinting), savedAt: Number(entry?.savedAt) || Date.now() };
+  }
+
+  function policySnapshot(entry) {
+    return { key: string(entry?.key, 1000), policyUrl: string(entry?.policyUrl, 1000), pageUrl: string(entry?.pageUrl, 1000), title: string(entry?.title, 300), signals: strings(entry?.signals, 30), summary: strings(entry?.summary, 20), privacyLabel: entry?.privacyLabel && typeof entry.privacyLabel === "object" ? entry.privacyLabel : null, risk: entry?.risk && typeof entry.risk === "object" ? entry.risk : null, rights: strings(entry?.rights, 20), savedAt: Number(entry?.savedAt) || Date.now() };
+  }
+
+  globalScope.ConsentLensStorage = { safeArray, settings, tracker, receipt, timeline, policySnapshot, string, strings };
 })(self);

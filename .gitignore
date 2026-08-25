@@ -3,3 +3,5 @@ node_modules/
 *.log
 backend/data/tracker-observations.json
 backend/data/company-claims.json
+backend/data/intel-contributions.json
+backend/data/verification-registry.json

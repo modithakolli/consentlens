@@ -116,4 +116,6 @@ That creates a zip you can upload to the Chrome Web Store or hand to a tester. T
 - `webRequest` observes network destinations needed for the tracker report.
 - Broad host access currently supports live scanning. It is a deliberate audit item before distribution; future versions should prefer optional host access where Chrome permits it.
 
+ConsentLens does not use `webRequest` to modify traffic, block content, or inspect request bodies. Moving the scanner to user-initiated optional host access is the next permission-minimization milestone; it requires replacing automatic scans with an explicit per-site scan action.
+
 The extension page CSP permits scripts only from the packaged extension. See `docs/ux-principles.md` for the interaction and evidence rules.

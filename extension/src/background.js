@@ -367,7 +367,7 @@ function getThirdParties(state) {
 function storePolicySnapshot(snapshot) {
   return new Promise((resolve) => {
     chrome.storage.local.get({ policySnapshots: [] }, (result) => {
-      const snapshots = Array.isArray(result.policySnapshots) ? result.policySnapshots : [];
+      const snapshots = ConsentLensStorage.safeArray(result.policySnapshots, "policySnapshots").map(ConsentLensStorage.policySnapshot);
       const key = snapshot.policyUrl || snapshot.pageUrl || "unknown";
       const previous = snapshots.find((item) => item.key === key) || null;
       const currentSignals = Array.isArray(snapshot.signals) ? snapshot.signals.map((signal) => signal.id) : [];
@@ -399,7 +399,7 @@ function storePolicySnapshot(snapshot) {
 function storeActivityTimeline(report, risk) {
   return new Promise((resolve) => {
     chrome.storage.local.get({ activityTimeline: [] }, (result) => {
-      const timeline = Array.isArray(result.activityTimeline) ? result.activityTimeline : [];
+      const timeline = ConsentLensStorage.safeArray(result.activityTimeline, "activityTimeline").map(ConsentLensStorage.timeline);
       const pageHost = report.pageHost || safeHost(report.pageUrl || "");
       const entry = {
         key: pageHost || report.pageUrl || "unknown",
@@ -576,8 +576,8 @@ async function analyzeCurrentPolicy(tabId, region = "IN") {
 
 function storeReceipt(receipt) {
   chrome.storage.local.get({ consentReceipts: [] }, (result) => {
-    const receipts = Array.isArray(result.consentReceipts) ? result.consentReceipts : [];
-    const next = [receipt, ...receipts].slice(0, 50);
+    const receipts = ConsentLensStorage.safeArray(result.consentReceipts, "consentReceipts").map(ConsentLensStorage.receipt);
+    const next = [ConsentLensStorage.receipt(receipt), ...receipts].slice(0, 50);
     chrome.storage.local.set({ consentReceipts: next });
   });
 }
@@ -662,14 +662,14 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
   if (message?.type === "CONSENTLENS_GET_RECEIPTS") {
     chrome.storage.local.get({ consentReceipts: [] }, (result) => {
-      sendResponse({ ok: true, receipts: result.consentReceipts || [] });
+      sendResponse({ ok: true, receipts: ConsentLensStorage.safeArray(result.consentReceipts, "consentReceipts").map(ConsentLensStorage.receipt) });
     });
     return true;
   }
 
   if (message?.type === "CONSENTLENS_GET_TIMELINE") {
     chrome.storage.local.get({ activityTimeline: [] }, (result) => {
-      sendResponse({ ok: true, timeline: result.activityTimeline || [] });
+      sendResponse({ ok: true, timeline: ConsentLensStorage.safeArray(result.activityTimeline, "activityTimeline").map(ConsentLensStorage.timeline) });
     });
     return true;
   }
@@ -684,9 +684,9 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         trackerArchive: []
       },
       (result) => {
-        const receipts = Array.isArray(result.consentReceipts) ? result.consentReceipts : [];
-        const timeline = Array.isArray(result.activityTimeline) ? result.activityTimeline : [];
-        const policies = Array.isArray(result.policySnapshots) ? result.policySnapshots : [];
+        const receipts = ConsentLensStorage.safeArray(result.consentReceipts, "consentReceipts").map(ConsentLensStorage.receipt);
+        const timeline = ConsentLensStorage.safeArray(result.activityTimeline, "activityTimeline").map(ConsentLensStorage.timeline);
+        const policies = ConsentLensStorage.safeArray(result.policySnapshots, "policySnapshots").map(ConsentLensStorage.policySnapshot);
         const qaHistory = Array.isArray(result.evidenceQa) ? result.evidenceQa : [];
         const trackerArchive = Array.isArray(result.trackerArchive) ? result.trackerArchive : [];
 

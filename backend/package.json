@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "node server.js",
     "start": "node server.js",
-    "test": "node test/tracker-intel.mjs && node test/site-intel.mjs && node test/app-intel.mjs && node test/policy-security.mjs"
+    "test": "node test/tracker-intel.mjs && node test/site-intel.mjs && node test/app-intel.mjs && node test/policy-security.mjs && node test/verification-registry.mjs"
   },
   "engines": {
     "node": ">=18"

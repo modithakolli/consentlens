@@ -1,13 +1,12 @@
 {
-  "terms": [
-    "accept all",
-    "i agree",
-    "reject all",
-    "manage choices",
-    "legitimate interest",
-    "continue without accepting",
-    "do not sell",
-    "unsubscribe",
-    "privacy settings"
+  "schemaVersion": "1.0.0",
+  "patterns": [
+    { "id": "missing-reject", "label": "No equally clear reject choice", "severity": "high", "evidence": "Accept is visible but a direct reject action is not." },
+    { "id": "hidden-reject", "label": "Hidden reject option", "severity": "high", "evidence": "Reject wording exists but a visible reject control was not found." },
+    { "id": "multi-step-reject", "label": "More steps to refuse", "severity": "medium", "evidence": "Settings are offered without a direct reject choice." },
+    { "id": "default-opt-in", "label": "Optional tracking preselected", "severity": "high", "evidence": "An optional tracking toggle appears enabled by default." },
+    { "id": "accept-emphasis", "label": "Accept action emphasized", "severity": "medium", "evidence": "Accept controls are more visible than reject controls." },
+    { "id": "confirm-shaming", "label": "Potential confirm shaming", "severity": "medium", "evidence": "Consent language uses possible guilt or loss framing." },
+    { "id": "legitimate-interest-clarity", "label": "Legitimate-interest clarity gap", "severity": "medium", "evidence": "Legitimate interest appears without a visible objection signal." }
   ]
 }

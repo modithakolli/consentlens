@@ -44,6 +44,9 @@ node server.js
 - `GET /health`
 - `GET /tracker-archive`
 - `POST /company-claims` (manual review intake; never self-verifies a company)
+- `POST /intel-contributions` (public-source evidence review intake)
+- `GET /public-profiles/:domain` (public intelligence and verification status)
+- `POST /verification-reviews` (reviewer-token protected; never exposed to the extension)
 - `POST /analyze-policy`
 - `POST /domain-intel`
 - `POST /site-intel`
@@ -70,5 +73,7 @@ The site and app intelligence routes return:
 The extension should only call the backend when the user asks for deeper policy analysis. Optional tracker contributions contain aggregated third-party provider observations only; they do not include page URLs, titles, receipts, policy text, or account data.
 
 Company claims are a review queue, not a badge endpoint. A reviewer must validate domain ownership and public evidence before any future verified status can be issued, renewed, suspended, or revoked.
+
+Set `REVIEWER_TOKEN` only in the private review environment. Verification reviews require this token, and a `verified` status requires a criteria version plus expiry date.
 
 For production, keep `ALLOWED_ORIGINS` tight, set the body size and rate limit values, and point the extension at the deployed API through the popup settings page instead of hardcoding URLs in the extension bundle.

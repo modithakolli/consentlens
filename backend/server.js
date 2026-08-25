@@ -6,6 +6,9 @@ import { getDomainIntel, lookupDomain } from "./src/domainIntel.js";
 import { legalRightsForRegion } from "./src/legalRights.js";
 import { getTrackerObservations, recordTrackerObservations } from "./src/trackerArchive.js";
 import { submitCompanyClaim } from "./src/companyClaims.js";
+import { submitContribution } from "./src/intelContributions.js";
+import { verificationFor, reviewVerification } from "./src/verificationRegistry.js";
+import { observations as validateObservations } from "./src/schemas.js";
 
 const PORT = Number(process.env.PORT || 8787);
 const APP_VERSION = "0.2.0";
@@ -15,6 +18,7 @@ const ALLOWED_ORIGINS = String(process.env.ALLOWED_ORIGINS || "*")
   .filter(Boolean);
 const MAX_BODY_BYTES = Number(process.env.MAX_BODY_BYTES || 256 * 1024);
 const RATE_LIMIT_WINDOW_MS = Number(process.env.RATE_LIMIT_WINDOW_MS || 60_000);
+const REVIEWER_TOKEN = String(process.env.REVIEWER_TOKEN || "");
 const rateLimits = new Map();
 
 const ROUTE_LIMITS = {
@@ -174,6 +178,8 @@ async function handle(request, response) {
         "/tracker-observations",
         "/tracker-archive",
         "/company-claims",
+        "/intel-contributions",
+        "/public-profiles/:domain",
         "/analyze-policy"
       ]
     }, origin || "*");
@@ -298,7 +304,7 @@ async function handle(request, response) {
     }
 
     const body = await readJson(request);
-    const observations = Array.isArray(body.observations) ? body.observations.slice(0, 100) : [];
+    const observations = validateObservations(body.observations);
     if (!observations.length) {
       sendJson(response, 400, { ok: false, error: "observations must be a non-empty array" }, origin || "*");
       return;
@@ -321,6 +327,39 @@ async function handle(request, response) {
     } catch (error) {
       sendJson(response, 400, { ok: false, error: error.message }, origin || "*");
     }
+    return;
+  }
+
+  if (request.method === "POST" && url.pathname === "/intel-contributions") {
+    const limit = allowRequest(request, "intel-contributions", 8);
+    if (!limit.allowed) return sendJson(response, 429, { ok: false, error: "Rate limit exceeded" }, origin || "*");
+    try {
+      const contribution = await submitContribution(await readJson(request));
+      sendJson(response, 202, { ok: true, contribution, message: "Contribution submitted for evidence review." }, origin || "*");
+    } catch (error) { sendJson(response, 400, { ok: false, error: error.message }, origin || "*"); }
+    return;
+  }
+
+  if (request.method === "POST" && url.pathname === "/verification-reviews") {
+    if (!REVIEWER_TOKEN || request.headers["x-consentlens-reviewer-token"] !== REVIEWER_TOKEN) {
+      sendJson(response, 403, { ok: false, error: "Reviewer authorization required" }, origin || "*"); return;
+    }
+    try { sendJson(response, 200, { ok: true, verification: await reviewVerification(await readJson(request)) }, origin || "*"); }
+    catch (error) { sendJson(response, 400, { ok: false, error: error.message }, origin || "*"); }
+    return;
+  }
+
+  const publicProfileMatch = url.pathname.match(/^\/public-profiles\/([^/]+)$/);
+  if (request.method === "GET" && publicProfileMatch) {
+    const domain = decodeURIComponent(publicProfileMatch[1]);
+    const service = lookupDomain(domain);
+    const app = lookupApp(domain);
+    const verification = await verificationFor(domain);
+    sendJson(response, 200, { ok: true, profile: {
+      domain: service.host, service: service.known ? service : null, app: app?.found ? app : null,
+      verification: verification ? { status: verification.status, scope: verification.scope, criteriaVersion: verification.criteriaVersion, issuedAt: verification.issuedAt, expiresAt: verification.expiresAt, reviewedAt: verification.reviewedAt, reason: verification.reason } : { status: "not_assessed" },
+      evidenceNotice: "Network observations indicate a technical relationship; they do not prove a personal-data transfer."
+    } }, origin || "*");
     return;
   }
 
