@@ -1,11 +1,14 @@
 import { createServer } from "node:http";
 import { URL } from "node:url";
+import { readFile } from "node:fs/promises";
+import { dirname, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
 import { analyzePolicyFromUrl } from "./src/policyAnalyzer.js";
 import { lookupApp } from "./src/appIntel.js";
 import { getDomainIntel, lookupDomain } from "./src/domainIntel.js";
 import { legalRightsForRegion } from "./src/legalRights.js";
 import { getTrackerObservations, recordTrackerObservations } from "./src/trackerArchive.js";
-import { submitCompanyClaim } from "./src/companyClaims.js";
+import { submitCompanyClaim, verifyClaimDomain, reviewerClaims } from "./src/companyClaims.js";
 import { submitContribution } from "./src/intelContributions.js";
 import { verificationFor, reviewVerification } from "./src/verificationRegistry.js";
 import { observations as validateObservations } from "./src/schemas.js";
@@ -20,6 +23,7 @@ const MAX_BODY_BYTES = Number(process.env.MAX_BODY_BYTES || 256 * 1024);
 const RATE_LIMIT_WINDOW_MS = Number(process.env.RATE_LIMIT_WINDOW_MS || 60_000);
 const REVIEWER_TOKEN = String(process.env.REVIEWER_TOKEN || "");
 const rateLimits = new Map();
+const PUBLIC_DIR = resolve(dirname(fileURLToPath(import.meta.url)), "public");
 
 const ROUTE_LIMITS = {
   default: 120,
@@ -49,6 +53,14 @@ function sendJson(response, status, body, origin = "*") {
     "Access-Control-Allow-Headers": "Content-Type"
   });
   response.end(JSON.stringify(body));
+}
+
+async function sendPublicFile(response, filename, contentType) {
+  try {
+    const body = await readFile(resolve(PUBLIC_DIR, filename));
+    response.writeHead(200, { "Content-Type": contentType, "Cache-Control": "no-store", "X-Content-Type-Options": "nosniff", "Content-Security-Policy": "default-src 'self'; connect-src 'self'; style-src 'self'; script-src 'self'; base-uri 'none'; frame-ancestors 'none'" });
+    response.end(body);
+  } catch { response.writeHead(404).end("Not found"); }
 }
 
 async function readJson(request) {
@@ -162,6 +174,11 @@ async function handle(request, response) {
     response.end();
     return;
   }
+
+  if (request.method === "GET" && url.pathname === "/profiles") return sendPublicFile(response, "profiles.html", "text/html; charset=utf-8");
+  if (request.method === "GET" && url.pathname === "/review") return sendPublicFile(response, "review.html", "text/html; charset=utf-8");
+  if (request.method === "GET" && url.pathname === "/app.js") return sendPublicFile(response, "app.js", "text/javascript; charset=utf-8");
+  if (request.method === "GET" && url.pathname === "/app.css") return sendPublicFile(response, "app.css", "text/css; charset=utf-8");
 
   if (request.method === "GET" && url.pathname === "/") {
     sendJson(response, 200, {
@@ -330,6 +347,13 @@ async function handle(request, response) {
     return;
   }
 
+  const claimVerifyMatch = url.pathname.match(/^\/company-claims\/([^/]+)\/verify-domain$/);
+  if (request.method === "POST" && claimVerifyMatch) {
+    try { sendJson(response, 200, { ok: true, claim: await verifyClaimDomain(decodeURIComponent(claimVerifyMatch[1])) }, origin || "*"); }
+    catch (error) { sendJson(response, 422, { ok: false, error: error.message }, origin || "*"); }
+    return;
+  }
+
   if (request.method === "POST" && url.pathname === "/intel-contributions") {
     const limit = allowRequest(request, "intel-contributions", 8);
     if (!limit.allowed) return sendJson(response, 429, { ok: false, error: "Rate limit exceeded" }, origin || "*");
@@ -346,6 +370,14 @@ async function handle(request, response) {
     }
     try { sendJson(response, 200, { ok: true, verification: await reviewVerification(await readJson(request)) }, origin || "*"); }
     catch (error) { sendJson(response, 400, { ok: false, error: error.message }, origin || "*"); }
+    return;
+  }
+
+  if (request.method === "GET" && url.pathname === "/reviewer/claims") {
+    if (!REVIEWER_TOKEN || request.headers["x-consentlens-reviewer-token"] !== REVIEWER_TOKEN) {
+      sendJson(response, 403, { ok: false, error: "Reviewer authorization required" }, origin || "*"); return;
+    }
+    sendJson(response, 200, { ok: true, claims: await reviewerClaims() }, origin || "*");
     return;
   }
 

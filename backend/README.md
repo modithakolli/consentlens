@@ -44,6 +44,7 @@ node server.js
 - `GET /health`
 - `GET /tracker-archive`
 - `POST /company-claims` (manual review intake; never self-verifies a company)
+- `POST /company-claims/:id/verify-domain` (checks the claim's DNS TXT ownership challenge)
 - `POST /intel-contributions` (public-source evidence review intake)
 - `GET /public-profiles/:domain` (public intelligence and verification status)
 - `POST /verification-reviews` (reviewer-token protected; never exposed to the extension)
@@ -75,5 +76,12 @@ The extension should only call the backend when the user asks for deeper policy 
 Company claims are a review queue, not a badge endpoint. A reviewer must validate domain ownership and public evidence before any future verified status can be issued, renewed, suspended, or revoked.
 
 Set `REVIEWER_TOKEN` only in the private review environment. Verification reviews require this token, and a `verified` status requires a criteria version plus expiry date.
+
+## Local web surfaces
+
+- `http://localhost:8787/profiles` provides read-only public profiles plus a sourced-contribution form.
+- `http://localhost:8787/review` provides the reviewer console. It requires `REVIEWER_TOKEN`; do not expose that token or this console publicly.
+
+To claim a domain, publish the TXT value returned by `POST /company-claims` at `_consentlens-verify.your-domain.com`, then call the claim verification endpoint. DNS ownership only moves a claim to `claimed`; it never grants a verified badge.
 
 For production, keep `ALLOWED_ORIGINS` tight, set the body size and rate limit values, and point the extension at the deployed API through the popup settings page instead of hardcoding URLs in the extension bundle.

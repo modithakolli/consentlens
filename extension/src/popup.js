@@ -1,3 +1,9 @@
+import { renderOAuth as renderOAuthFeature } from "./popup/oauth.js";
+import { renderGraph as renderGraphFeature } from "./popup/graph.js";
+import { renderTimeline as renderTimelineFeature } from "./popup/timeline.js";
+import { renderReceipts as renderReceiptsFeature } from "./popup/receipts.js";
+import { renderFingerprinting as renderFingerprintingFeature } from "./popup/fingerprinting.js";
+
 function el(id) {
   return document.getElementById(id);
 }
@@ -300,7 +306,7 @@ function renderPlainEnglish(report, analysis) {
   paragraph("plainEnglish", buildPlainEnglishLines(report, analysis));
 }
 
-function renderOAuth(oauth) {
+function renderOAuthLegacy(oauth) {
   const node = el("oauth");
   node.innerHTML = "";
 
@@ -458,6 +464,8 @@ function renderLinks(links, inferredLinks = []) {
   });
 }
 
+const renderOAuth = renderOAuthFeature;
+
 function oauthRisk(scope) {
   const value = String(scope || "").toLowerCase();
   if (/mail\.readwrite|gmail\.modify|gmail\.send|files\.readwrite|drive$/.test(value)) return ["Critical", "Can change or broadly access sensitive content."];
@@ -561,7 +569,7 @@ function svgLine(svg, x1, y1, x2, y2) {
   svg.appendChild(line);
 }
 
-function renderGraph(report, analysis) {
+function renderGraphLegacy(report, analysis) {
   const node = el("trackerGraph");
   node.innerHTML = "";
   const thirdParties = (report.thirdParties || []).slice(0, 7);
@@ -610,6 +618,8 @@ function renderGraph(report, analysis) {
   node.appendChild(svg);
   node.appendChild(evidence);
 }
+
+const renderGraph = (report) => renderGraphFeature(report, resolvePartyIntel);
 
 function renderPolicyIntelligence(analysis) {
   const node = el("policyIntelligence");
@@ -858,7 +868,7 @@ function renderRiskBreakdown(report, analysis) {
   });
 }
 
-function renderTimeline(timeline) {
+function renderTimelineLegacy(timeline) {
   const node = el("privacyTimeline");
   node.innerHTML = "";
 
@@ -939,7 +949,7 @@ async function copyDsar() {
   }
 }
 
-function renderFingerprinting(report) {
+function renderFingerprintingLegacy(report) {
   const node = el("fingerprinting");
   node.innerHTML = "";
   if (!report) {
@@ -1078,7 +1088,7 @@ async function askEvidence(question) {
   await loadMemory();
 }
 
-function renderReceipts(receipts) {
+function renderReceiptsLegacy(receipts) {
   const node = el("receipts");
   node.innerHTML = "";
 
@@ -1152,6 +1162,10 @@ function renderMemory(memory) {
     feed.appendChild(li);
   });
 }
+
+const renderTimeline = renderTimelineFeature;
+const renderReceipts = renderReceiptsFeature;
+const renderFingerprinting = renderFingerprintingFeature;
 
 function buildLocalPolicyAnalysis(report, region = "IN") {
   if (!report) {
