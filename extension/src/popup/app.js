@@ -9,4 +9,5 @@ import "./graph.js";
 import "./timeline.js";
 import "./receipts.js";
 import "./fingerprinting.js";
+import "./dsar.js";
 import "../popup.js";

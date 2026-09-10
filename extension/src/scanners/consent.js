@@ -1,15 +1,24 @@
 (function attachConsentScanner(globalScope) {
-  function findConsentText() {
+  const CONSENT_SELECTOR = "[id*='cookie' i], [class*='cookie' i], [id*='consent' i], [class*='consent' i], [id*='onetrust' i], [class*='onetrust' i], [id*='didomi' i], [class*='didomi' i], [id*='sp_message' i], [class*='sp_message' i], [role='dialog'], dialog";
+  const CONTROL_SELECTOR = "button, a, input[type='button'], input[type='submit'], [role='button']";
+  const CONSENT_TERMS = /cookie|consent|privacy|accept all|allow all|manage settings|manage choices|reject all|third-party|third party/i;
+
+  function findConsentRoot() {
     const candidates = Array.from(document.querySelectorAll(
-      "[id*='cookie' i], [class*='cookie' i], [id*='consent' i], [class*='consent' i], [id*='onetrust' i], [class*='onetrust' i], [role='dialog'], dialog"
+      CONSENT_SELECTOR
     ));
+    return candidates
+      .map((node) => ({ node, text: ConsentLensPageScanner.nodeText(node) }))
+      .filter(({ node, text }) => CONSENT_TERMS.test(text) && (node.querySelectorAll?.(CONTROL_SELECTOR).length || 0))
+      .sort((a, b) => {
+        const aControls = a.node.querySelectorAll?.(CONTROL_SELECTOR).length || 0;
+        const bControls = b.node.querySelectorAll?.(CONTROL_SELECTOR).length || 0;
+        return bControls - aControls || b.text.length - a.text.length;
+      })[0]?.node || null;
+  }
 
-    const consentCandidates = candidates
-      .map(ConsentLensPageScanner.nodeText)
-      .filter((text) => /cookie|consent|privacy|accept all|manage settings|manage choices|reject all|third-party|third party/i.test(text))
-      .sort((a, b) => b.length - a.length);
-
-    return (consentCandidates[0] || "").slice(0, 12000);
+  function findConsentText() {
+    return ConsentLensPageScanner.nodeText(findConsentRoot()).slice(0, 12000);
   }
 
   function signalText(fullText, consentText) {
@@ -20,20 +29,20 @@
     return "";
   }
 
-  function scanCookieBanner(text) {
+  function scanCookieBanner(text, root) {
     const lower = String(text || "").toLowerCase();
     const cookieTerms = ["cookie", "cookies", "consent", "privacy choices"];
-    const hasBanner = cookieTerms.some((term) => lower.includes(term));
+    const hasBanner = Boolean(root) && cookieTerms.some((term) => lower.includes(term));
     const hasAccept = /accept all|agree|allow all/i.test(text);
     const hasReject = /reject all|decline|necessary only|continue without accepting/i.test(text);
     const hasManage = /manage choices|manage settings|preferences|privacy settings|customize/i.test(text);
     const mentionsThirdParties = /third-party|third party|partners|marketing|advertising|analytics/i.test(text);
     const mentionsProfiling = /profiling|behavioral|personalized ads|targeted ads|cross-site|cross site/i.test(text);
-    const hasHiddenReject = hasReject && !findVisibleControl(/reject all|decline|necessary only|continue without accepting/i);
-    const hasPreselectedOptionalToggles = findPreselectedOptionalToggles();
-    const acceptButtons = findVisibleControls(/accept all|allow all|i agree|accept cookies/i);
-    const rejectButtons = findVisibleControls(/reject all|decline|necessary only|continue without accepting/i);
-    const acceptEmphasis = acceptButtons.length > rejectButtons.length;
+    const hasHiddenReject = hasReject && !findVisibleControl(/reject all|decline|necessary only|continue without accepting/i, root);
+    const hasPreselectedOptionalToggles = findPreselectedOptionalToggles(root);
+    const acceptButtons = findVisibleControls(/accept all|allow all|i agree|accept cookies/i, root);
+    const rejectButtons = findVisibleControls(/reject all|decline|necessary only|continue without accepting/i, root);
+    const acceptEmphasis = hasBanner && visuallyEmphasized(acceptButtons, rejectButtons);
     const darkPatterns = [];
     if (hasBanner && hasAccept && !hasReject) darkPatterns.push({ id: "missing-reject", severity: "high", label: "No equally clear reject choice", evidence: "Accept was visible but a direct reject choice was not detected." });
     if (hasHiddenReject) darkPatterns.push({ id: "hidden-reject", severity: "high", label: "Hidden reject option", evidence: "Reject language was present but no visible reject control was found." });
@@ -58,8 +67,8 @@
     };
   }
 
-  function findVisibleControls(pattern) {
-    return Array.from(document.querySelectorAll("button, a, input[type='button'], input[type='submit'], [role='button']"))
+  function findVisibleControls(pattern, root = document) {
+    return Array.from(root?.querySelectorAll?.(CONTROL_SELECTOR) || [])
       .filter((node) => {
         const text = (node.innerText || node.value || node.getAttribute("aria-label") || node.getAttribute("title") || "").replace(/\s+/g, " ").trim();
         if (!pattern.test(text)) return false;
@@ -69,12 +78,22 @@
       });
   }
 
-  function findVisibleControl(pattern) {
-    return findVisibleControls(pattern)[0] || null;
+  function findVisibleControl(pattern, root) {
+    return findVisibleControls(pattern, root)[0] || null;
   }
 
-  function findPreselectedOptionalToggles() {
-    return Array.from(document.querySelectorAll("input[type='checkbox']:checked, input[type='radio']:checked, [role='switch'][aria-checked='true']"))
+  function visuallyEmphasized(acceptButtons, rejectButtons) {
+    if (!acceptButtons.length || !rejectButtons.length) return false;
+    const weight = (node) => {
+      const rect = node.getBoundingClientRect();
+      const style = getComputedStyle(node);
+      return rect.width * rect.height * (Number(style.fontWeight) >= 600 ? 1.1 : 1);
+    };
+    return Math.max(...acceptButtons.map(weight)) > Math.max(...rejectButtons.map(weight)) * 1.25;
+  }
+
+  function findPreselectedOptionalToggles(root = document) {
+    return Array.from(root?.querySelectorAll?.("input[type='checkbox']:checked, input[type='radio']:checked, [role='switch'][aria-checked='true']") || [])
       .some((node) => {
         const container = node.closest("label, li, div, section") || node;
         const text = ConsentLensPageScanner.nodeText(container).toLowerCase();
@@ -152,7 +171,7 @@
   function gatherContext(control) {
     const chunks = [];
     let current = control;
-    for (let depth = 0; current && depth < 5; depth += 1, current = current.parentElement) {
+    for (let depth = 0; current && depth < 12; depth += 1, current = current.parentElement) {
       const text = ConsentLensPageScanner.nodeText(current);
       if (text) chunks.push(text);
     }
@@ -169,7 +188,7 @@
     const lower = label.toLowerCase();
     const acceptLike = /^(accept all|accept cookies?|accept selected|accept selection|accept optional|accept preferences|allow all|allow cookies?|allow selected|agree|i agree|save and continue|continue with recommended|ok|okay|got it|yes, i agree|yes, accept)$/i.test(label)
       || (/^(accept|allow|agree|ok|okay|got it|continue|yes)$/i.test(label) && /cookie|consent|privacy|tracking|analytics|advertising|marketing|preferences|choice|choices|third-party|third party/i.test(gatherContext(control)));
-    const rejectLike = /reject|decline|necessary|manage|settings|preferences|customize|limit/i.test(label);
+    const rejectLike = /^(reject|reject all|decline|decline all|necessary only|manage|manage choices|manage settings|preferences|privacy settings|customize|limit)$/i.test(label);
     if (rejectLike || !acceptLike) return false;
 
     const context = gatherContext(control);
@@ -187,17 +206,14 @@
       }
     }
 
-    if (report?.cookieBanner?.hasBanner && (report?.cookieBanner?.hasAccept || report?.cookieBanner?.hasManage || report?.cookieBanner?.hasReject)) {
-      return true;
-    }
-
     return false;
   }
 
   function scan(page) {
-    const consentText = findConsentText();
+    const consentRoot = findConsentRoot();
+    const consentText = ConsentLensPageScanner.nodeText(consentRoot).slice(0, 12000);
     const focusedSignalText = signalText(page.fullText, consentText);
-    const cookieBanner = scanCookieBanner((consentText || page.fullText).slice(0, 40000));
+    const cookieBanner = scanCookieBanner(consentText.slice(0, 40000), consentRoot);
     const policySignals = {
       dataCollected: ConsentLensPageScanner.findMatchingSignals(focusedSignalText, ConsentLensRules.DATA_PATTERNS),
       sharing: ConsentLensPageScanner.findMatchingSignals(focusedSignalText, ConsentLensRules.SHARING_PATTERNS)

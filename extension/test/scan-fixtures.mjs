@@ -24,6 +24,9 @@ function makeNode(text, attrs = {}) {
     closest() {
       return attrs.closestNode || this;
     },
+    querySelectorAll(selector) {
+      return attrs.querySelectorAll ? attrs.querySelectorAll(selector) : [];
+    },
     getBoundingClientRect() {
       return attrs.rect || { width: 120, height: 36 };
     }
@@ -64,7 +67,14 @@ function runFixture(site) {
       if (selector.includes("a[href]")) return site.links;
       if (selector.includes("button")) return site.controls;
       if (selector.includes("checkbox")) return site.toggles;
-      if (selector.includes("cookie") || selector.includes("dialog")) return [makeNode(site.bodyText)];
+      if (selector.includes("cookie") || selector.includes("dialog")) {
+        return [makeNode(site.bodyText, {
+          querySelectorAll(innerSelector) {
+            if (innerSelector.includes("checkbox")) return site.toggles;
+            return site.controls;
+          }
+        })];
+      }
       return [];
     },
     querySelector(selector) {
@@ -141,6 +151,12 @@ function runConsentClickCheck() {
   const genericOk = makeNode("OK", {
     rect: { width: 92, height: 34 }
   });
+  const preferencesPanel = makeNode("Cookie preferences: choose what you allow");
+  const nestedPreferenceArea = makeNode("Analytics and advertising choices", { parentElement: preferencesPanel });
+  const allowAll = makeNode("Allow all", {
+    parentElement: nestedPreferenceArea,
+    rect: { width: 120, height: 34 }
+  });
 
   if (!context.ConsentLensConsentScanner.consentClickAllowed(consentOk)) {
     console.error("Consent click should be allowed inside a consent context.");
@@ -149,6 +165,21 @@ function runConsentClickCheck() {
 
   if (context.ConsentLensConsentScanner.consentClickAllowed(genericOk)) {
     console.error("Generic OK button should not be intercepted outside a consent context.");
+    process.exit(1);
+  }
+
+  if (!context.ConsentLensConsentScanner.consentClickAllowed(allowAll)) {
+    console.error("Allow all should be intercepted after opening consent preferences.");
+    process.exit(1);
+  }
+
+  if (context.ConsentLensRules.isThirdPartyHost("www.microsoft.com", "careers.microsoft.com")) {
+    console.error("First-party subdomains must not be counted as third parties.");
+    process.exit(1);
+  }
+
+  if (!context.ConsentLensRules.isThirdPartyHost("clarity.ms", "careers.microsoft.com")) {
+    console.error("External tracker domains must remain third parties.");
     process.exit(1);
   }
 }

@@ -1,11 +1,14 @@
 (function attachConsentWarning(globalScope) {
   let bypassConsentWarning = false;
 
-  const CONSENT_CONTAINER_SELECTOR = "[role='dialog'], dialog, [id*='cookie' i], [class*='cookie' i], [id*='consent' i], [class*='consent' i], [id*='privacy' i], [class*='privacy' i], [id*='onetrust' i], [class*='onetrust' i]";
+  const CONSENT_CONTAINER_SELECTOR = "[role='dialog'], dialog, [id*='cookie' i], [class*='cookie' i], [id*='consent' i], [class*='consent' i], [id*='privacy' i], [class*='privacy' i], [id*='onetrust' i], [class*='onetrust' i], [id*='didomi' i], [class*='didomi' i], [id*='sp_message' i], [class*='sp_message' i]";
+  const CONTROL_SELECTOR = "button, a, input[type='button'], input[type='submit'], [role='button']";
   const CONSENT_CONTEXT_PATTERN = /cookie|consent|privacy|tracking|analytics|advertising|marketing|preferences|choice|choices|third-party|third party/i;
   const ACCEPT_LABEL_PATTERN = /^(accept all|accept cookies?|accept selected|accept selection|accept optional|accept preferences|allow all|allow cookies?|allow selected|agree|i agree|save and continue|continue with recommended|ok|okay|got it|yes, i agree|yes, accept)$/i;
   const GENERIC_ACCEPT_PATTERN = /^(accept|allow|agree|ok|okay|got it|continue|yes)$/i;
-  const REJECT_OR_SETTINGS_PATTERN = /reject|decline|necessary|manage|settings|preferences|customize|limit/i;
+  // Treat navigation into settings as neutral, but do not suppress a positive
+  // action such as "Accept preferences" or "Allow selected".
+  const REJECT_OR_SETTINGS_PATTERN = /^(reject|reject all|decline|decline all|necessary only|manage|manage choices|manage settings|preferences|privacy settings|customize|limit)$/i;
 
   function getText(node) {
     return String(
@@ -20,7 +23,7 @@
   function gatherContext(control) {
     const chunks = [];
     let current = control;
-    for (let depth = 0; current && depth < 5; depth += 1, current = current.parentElement) {
+    for (let depth = 0; current && depth < 12; depth += 1, current = current.parentElement) {
       const text = ConsentLensPageScanner.nodeText(current);
       if (text) chunks.push(text);
       if (current.matches?.(CONSENT_CONTAINER_SELECTOR)) break;
@@ -47,11 +50,7 @@
       return true;
     }
 
-    if (report?.cookieBanner?.hasBanner && (report?.cookieBanner?.hasAccept || report?.cookieBanner?.hasManage || report?.cookieBanner?.hasReject)) {
-      return true;
-    }
-
-    if ((report?.consentSummary || []).length && /accept|allow|agree|cookie|privacy|consent/i.test(gatherContext(control))) {
+    if ((report?.consentSummary || []).length && /cookie|privacy|consent|tracking|preferences/i.test(gatherContext(control))) {
       return true;
     }
 
@@ -59,7 +58,7 @@
   }
 
   function classifyConsentClick(target, report) {
-    const control = target?.closest?.("button, a, input[type='button'], input[type='submit'], [role='button']");
+    const control = target?.closest?.(CONTROL_SELECTOR);
     if (!control) return null;
 
     const label = getText(control);
@@ -256,7 +255,11 @@
       if (bypassConsentWarning) return;
 
       const report = typeof buildReport === "function" ? buildReport() : null;
-      const action = classifyConsentClick(event.target, report);
+      // CMP controls frequently place text inside nested spans or a shadow
+      // root. The composed path gives us the real actionable control.
+      const path = typeof event.composedPath === "function" ? event.composedPath() : [];
+      const actionable = path.find((node) => node?.matches?.(CONTROL_SELECTOR)) || event.target;
+      const action = classifyConsentClick(actionable, report);
       if (!action) return;
 
       event.preventDefault();

@@ -191,6 +191,30 @@
     return categories;
   }
 
+  // This intentionally covers the common multi-part public suffixes used by
+  // the services we scan. It is a conservative local fallback, not a full PSL
+  // implementation: an uncertain host remains third party rather than being
+  // silently treated as first party.
+  const MULTIPART_SUFFIXES = new Set([
+    "co.uk", "org.uk", "ac.uk", "gov.uk", "com.au", "net.au", "org.au",
+    "co.nz", "co.jp", "co.in", "com.br", "com.mx", "com.sg", "co.kr"
+  ]);
+
+  function registrableDomain(hostname) {
+    const host = normalizeHost(hostname).replace(/\.$/, "");
+    if (!host || host === "localhost" || /^\d{1,3}(?:\.\d{1,3}){3}$/.test(host) || host.includes(":")) return host;
+    const labels = host.split(".").filter(Boolean);
+    if (labels.length < 3) return host;
+    const suffix = labels.slice(-2).join(".");
+    return labels.slice(-(MULTIPART_SUFFIXES.has(suffix) ? 3 : 2)).join(".");
+  }
+
+  function isThirdPartyHost(requestHost, pageHost) {
+    const requestDomain = registrableDomain(requestHost);
+    const pageDomain = registrableDomain(pageHost);
+    return Boolean(requestDomain && pageDomain && requestDomain !== pageDomain);
+  }
+
   function lookupTracker(hostname) {
     const host = normalizeHost(hostname);
     const profile = TRACKER_PROFILES.find((entry) => entry.domains.some((domain) => domainMatches(host, domain)));
@@ -215,6 +239,8 @@
     DARK_PATTERN_TERMS,
     normalizeHost,
     domainMatches,
+    registrableDomain,
+    isThirdPartyHost,
     categorizeDomain,
     lookupTracker
   };

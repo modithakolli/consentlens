@@ -116,8 +116,7 @@ function observeTrackers(report) {
 }
 
 function isThirdParty(requestHost, pageHost) {
-  if (!requestHost || !pageHost) return false;
-  return requestHost !== pageHost && !requestHost.endsWith("." + pageHost);
+  return ConsentLensRules.isThirdPartyHost(requestHost, pageHost);
 }
 
 function recordRequest(details) {
@@ -449,7 +448,9 @@ function setSettings(next) {
 }
 
 function syncTrackerObservations(report, settings) {
-  if (!settings?.apiBaseUrl) {
+  // Shared observations are strictly opt-in. Local tracker history remains in
+  // chrome.storage.local and works without any backend connection.
+  if (!settings?.apiBaseUrl || !settings.syncObservations || !settings.syncObservationsExplicit) {
     return Promise.resolve();
   }
 

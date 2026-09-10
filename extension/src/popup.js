@@ -3,6 +3,7 @@ import { renderGraph as renderGraphFeature } from "./popup/graph.js";
 import { renderTimeline as renderTimelineFeature } from "./popup/timeline.js";
 import { renderReceipts as renderReceiptsFeature } from "./popup/receipts.js";
 import { renderFingerprinting as renderFingerprintingFeature } from "./popup/fingerprinting.js";
+import { renderDsar as renderDsarFeature, copyDsar as copyDsarFeature } from "./popup/dsar.js";
 
 function el(id) {
   return document.getElementById(id);
@@ -895,7 +896,7 @@ function renderTimelineLegacy(timeline) {
   });
 }
 
-function buildDsarDraft(report, analysis) {
+function buildDsarDraftLegacy(report, analysis) {
   if (!report) {
     return "Load a page and click Refresh to generate a DSAR draft.";
   }
@@ -930,12 +931,12 @@ function buildDsarDraft(report, analysis) {
   ].join("\n");
 }
 
-function renderDsar(report, analysis) {
+function renderDsarLegacy(report, analysis) {
   const node = el("dsarDraft");
-  node.value = buildDsarDraft(report, analysis);
+  node.value = buildDsarDraftLegacy(report, analysis);
 }
 
-async function copyDsar() {
+async function copyDsarLegacy() {
   const node = el("dsarDraft");
   const text = node.value || "";
   if (!text) return;
@@ -1166,6 +1167,8 @@ function renderMemory(memory) {
 const renderTimeline = renderTimelineFeature;
 const renderReceipts = renderReceiptsFeature;
 const renderFingerprinting = renderFingerprintingFeature;
+const renderDsar = renderDsarFeature;
+const copyDsar = copyDsarFeature;
 
 function buildLocalPolicyAnalysis(report, region = "IN") {
   if (!report) {
