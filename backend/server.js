@@ -9,9 +9,10 @@ import { getDomainIntel, lookupDomain } from "./src/domainIntel.js";
 import { legalRightsForRegion } from "./src/legalRights.js";
 import { getTrackerObservations, recordTrackerObservations } from "./src/trackerArchive.js";
 import { submitCompanyClaim, verifyClaimDomain, reviewerClaims } from "./src/companyClaims.js";
-import { submitContribution } from "./src/intelContributions.js";
+import { submitContribution, reviewerContributions } from "./src/intelContributions.js";
 import { verificationFor, reviewVerification } from "./src/verificationRegistry.js";
 import { observations as validateObservations } from "./src/schemas.js";
+import { sourceFactsForDomain } from "./src/intelProfiles.js";
 
 const PORT = Number(process.env.PORT || 8787);
 const APP_VERSION = "0.2.0";
@@ -381,6 +382,14 @@ async function handle(request, response) {
     return;
   }
 
+  if (request.method === "GET" && url.pathname === "/reviewer/contributions") {
+    if (!REVIEWER_TOKEN || request.headers["x-consentlens-reviewer-token"] !== REVIEWER_TOKEN) {
+      sendJson(response, 403, { ok: false, error: "Reviewer authorization required" }, origin || "*"); return;
+    }
+    sendJson(response, 200, { ok: true, contributions: await reviewerContributions() }, origin || "*");
+    return;
+  }
+
   const publicProfileMatch = url.pathname.match(/^\/public-profiles\/([^/]+)$/);
   if (request.method === "GET" && publicProfileMatch) {
     const domain = decodeURIComponent(publicProfileMatch[1]);
@@ -389,6 +398,7 @@ async function handle(request, response) {
     const verification = await verificationFor(domain);
     sendJson(response, 200, { ok: true, profile: {
       domain: service.host, service: service.known ? service : null, app: app?.found ? app : null,
+      sourceFacts: sourceFactsForDomain(domain),
       verification: verification ? { status: verification.status, scope: verification.scope, criteriaVersion: verification.criteriaVersion, issuedAt: verification.issuedAt, expiresAt: verification.expiresAt, reviewedAt: verification.reviewedAt, reason: verification.reason } : { status: "not_assessed" },
       evidenceNotice: "Network observations indicate a technical relationship; they do not prove a personal-data transfer."
     } }, origin || "*");

@@ -19,3 +19,7 @@ export async function submitContribution(input) {
   const all = await readAll(); all.unshift(entry); await writeAll(all.slice(0, 2000));
   return { id: entry.id, status: entry.status };
 }
+
+export async function reviewerContributions() {
+  return readAll();
+}
