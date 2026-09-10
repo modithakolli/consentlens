@@ -36,7 +36,6 @@
     "activeTab",
     "scripting",
     "storage",
-    "tabs",
     "webRequest"
   ],
   "host_permissions": ["<all_urls>"]

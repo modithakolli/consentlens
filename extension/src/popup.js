@@ -4,6 +4,10 @@ import { renderTimeline as renderTimelineFeature } from "./popup/timeline.js";
 import { renderReceipts as renderReceiptsFeature } from "./popup/receipts.js";
 import { renderFingerprinting as renderFingerprintingFeature } from "./popup/fingerprinting.js";
 import { renderDsar as renderDsarFeature, copyDsar as copyDsarFeature } from "./popup/dsar.js";
+import { renderPolicyIntelligence as renderPolicyIntelligenceFeature } from "./popup/policy.js";
+import { renderEvidenceQA as renderEvidenceQAFeature, answerEvidenceQuestion as answerEvidenceQuestionFeature } from "./popup/evidence.js";
+import { renderRiskBreakdown as renderRiskBreakdownFeature } from "./popup/risk-breakdown.js";
+import { renderPrivacyLabel as renderPrivacyLabelFeature, renderSiteIntelligence as renderSiteIntelligenceFeature, localDataCollectedSummary as localDataCollectedSummaryFeature, localSharedWithSummary as localSharedWithSummaryFeature } from "./popup/site-intel.js";
 
 function el(id) {
   return document.getElementById(id);
@@ -622,7 +626,7 @@ function renderGraphLegacy(report, analysis) {
 
 const renderGraph = (report) => renderGraphFeature(report, resolvePartyIntel);
 
-function renderPolicyIntelligence(analysis) {
+function renderPolicyIntelligenceLegacy(analysis) {
   const node = el("policyIntelligence");
   node.innerHTML = "";
 
@@ -722,7 +726,7 @@ function labelItem(title, value, detail) {
   return box;
 }
 
-function localDataCollectedSummary(report) {
+function localDataCollectedSummaryLegacy(report) {
   const items = new Set();
   if (report?.content?.oauth?.hasOAuthProvider || report?.content?.oauth?.scopes?.length) items.add("account access");
   if (report?.content?.fingerprinting?.detected) items.add("device or browser identifiers");
@@ -734,7 +738,7 @@ function localDataCollectedSummary(report) {
   return Array.from(items);
 }
 
-function localSharedWithSummary(report) {
+function localSharedWithSummaryLegacy(report) {
   const items = new Set();
   const categories = new Set((report?.thirdParties || []).flatMap((party) => party.categories || []));
   if (categories.has("analytics")) items.add("analytics vendors");
@@ -749,7 +753,7 @@ function localSharedWithSummary(report) {
   return Array.from(items);
 }
 
-function renderPrivacyLabel(report, analysis) {
+function renderPrivacyLabelLegacy(report, analysis) {
   const node = el("privacyLabel");
   node.innerHTML = "";
   const policy = analysis?.policy;
@@ -786,7 +790,7 @@ function renderPrivacyLabel(report, analysis) {
   );
 }
 
-function renderSiteIntelligence(report) {
+function renderSiteIntelligenceLegacy(report) {
   const node = el("siteIntelligence");
   node.innerHTML = "";
   const mergedIntel = (report.thirdParties || []).map(resolvePartyIntel);
@@ -814,7 +818,7 @@ function renderSiteIntelligence(report) {
   );
 }
 
-function renderRiskBreakdown(report, analysis) {
+function renderRiskBreakdownLegacy(report, analysis) {
   const node = el("riskBreakdown");
   if (!node) return;
   node.innerHTML = "";
@@ -980,7 +984,7 @@ function renderFingerprintingLegacy(report) {
   node.appendChild(suggestions);
 }
 
-function answerEvidenceQuestion(report, analysis, question) {
+function answerEvidenceQuestionLegacy(report, analysis, question) {
   if (!report) {
     return "Load a page and click Refresh first so I have evidence to work from.";
   }
@@ -1037,11 +1041,11 @@ function answerEvidenceQuestion(report, analysis, question) {
   return chunks.join(" ");
 }
 
-function renderEvidenceQA(report, analysis, question) {
+function renderEvidenceQALegacy(report, analysis, question) {
   const node = el("evidenceAnswer");
   node.innerHTML = "";
 
-  const answer = answerEvidenceQuestion(report, analysis, question || el("evidenceQuestion").value);
+  const answer = answerEvidenceQuestionLegacy(report, analysis, question || el("evidenceQuestion").value);
   const card = document.createElement("div");
   card.className = "qaCard";
 
@@ -1169,6 +1173,14 @@ const renderReceipts = renderReceiptsFeature;
 const renderFingerprinting = renderFingerprintingFeature;
 const renderDsar = renderDsarFeature;
 const copyDsar = copyDsarFeature;
+const renderPolicyIntelligence = (analysis) => renderPolicyIntelligenceFeature(analysis, { report: currentReport, confidenceSummary });
+const renderEvidenceQA = (report, analysis, question) => renderEvidenceQAFeature(report, analysis, question);
+const answerEvidenceQuestion = (report, analysis, question) => answerEvidenceQuestionFeature(report, analysis, question);
+const renderRiskBreakdown = (report, analysis) => renderRiskBreakdownFeature(report, analysis);
+const localDataCollectedSummary = (report) => localDataCollectedSummaryFeature(report);
+const localSharedWithSummary = (report) => localSharedWithSummaryFeature(report);
+const renderPrivacyLabel = (report, analysis) => renderPrivacyLabelFeature(report, analysis, { confidenceSummary });
+const renderSiteIntelligence = (report) => renderSiteIntelligenceFeature(report, { resolvePartyIntel, friendlyCategory });
 
 function buildLocalPolicyAnalysis(report, region = "IN") {
   if (!report) {

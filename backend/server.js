@@ -7,7 +7,7 @@ import { analyzePolicyFromUrl } from "./src/policyAnalyzer.js";
 import { lookupApp } from "./src/appIntel.js";
 import { getDomainIntel, lookupDomain } from "./src/domainIntel.js";
 import { legalRightsForRegion } from "./src/legalRights.js";
-import { getTrackerObservations, recordTrackerObservations } from "./src/trackerArchive.js";
+import { getTrackerObservations, recordTrackerObservations, reviewTrackerObservation } from "./src/trackerArchive.js";
 import { submitCompanyClaim, verifyClaimDomain, reviewerClaims } from "./src/companyClaims.js";
 import { submitContribution, reviewerContributions } from "./src/intelContributions.js";
 import { verificationFor, reviewVerification } from "./src/verificationRegistry.js";
@@ -387,6 +387,25 @@ async function handle(request, response) {
       sendJson(response, 403, { ok: false, error: "Reviewer authorization required" }, origin || "*"); return;
     }
     sendJson(response, 200, { ok: true, contributions: await reviewerContributions() }, origin || "*");
+    return;
+  }
+
+  if (request.method === "GET" && url.pathname === "/reviewer/observations") {
+    if (!REVIEWER_TOKEN || request.headers["x-consentlens-reviewer-token"] !== REVIEWER_TOKEN) {
+      sendJson(response, 403, { ok: false, error: "Reviewer authorization required" }, origin || "*"); return;
+    }
+    const observations = await getTrackerObservations();
+    sendJson(response, 200, { ok: true, observations: observations.filter((item) => item.reviewStatus !== "rejected").slice(0, 200) }, origin || "*");
+    return;
+  }
+
+  const observationReviewMatch = url.pathname.match(/^\/reviewer\/observations\/([^/]+)$/);
+  if (request.method === "POST" && observationReviewMatch) {
+    if (!REVIEWER_TOKEN || request.headers["x-consentlens-reviewer-token"] !== REVIEWER_TOKEN) {
+      sendJson(response, 403, { ok: false, error: "Reviewer authorization required" }, origin || "*"); return;
+    }
+    try { sendJson(response, 200, { ok: true, observation: await reviewTrackerObservation(decodeURIComponent(observationReviewMatch[1]), await readJson(request)) }, origin || "*"); }
+    catch (error) { sendJson(response, 400, { ok: false, error: error.message }, origin || "*"); }
     return;
   }
 

@@ -38,7 +38,10 @@ function mergeEntry(existing, next) {
     firstSeen: existing?.firstSeen || next.firstSeen || Date.now(),
     lastSeen: next.lastSeen || Date.now(),
     contributorCount: (existing?.contributorCount || 0) + 1,
-    requests: (existing?.requests || 0) + (next.requests || 0)
+    requests: (existing?.requests || 0) + (next.requests || 0),
+    reviewStatus: existing?.reviewStatus || "pending_review",
+    reviewerNote: existing?.reviewerNote || "",
+    reviewedAt: existing?.reviewedAt || null
   };
 }
 
@@ -78,4 +81,16 @@ export async function recordTrackerObservations(observations) {
 
 export async function getTrackerObservations() {
   return readArchive();
+}
+
+export async function reviewTrackerObservation(hostname, review) {
+  const archive = await readArchive();
+  const host = normalizeHost(hostname);
+  const index = archive.findIndex((entry) => entry.host === host);
+  if (index < 0) throw new Error("Observed domain was not found");
+  const status = String(review?.status || "");
+  if (!["pending_review", "needs_evidence", "rejected", "approved_candidate"].includes(status)) throw new Error("Invalid observation review status");
+  archive[index] = { ...archive[index], reviewStatus: status, reviewerNote: String(review?.note || "").slice(0, 1000), reviewedAt: Date.now() };
+  await writeArchive(archive);
+  return archive[index];
 }

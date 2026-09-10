@@ -10,4 +10,8 @@ import "./timeline.js";
 import "./receipts.js";
 import "./fingerprinting.js";
 import "./dsar.js";
+import "./policy.js";
+import "./evidence.js";
+import "./risk-breakdown.js";
+import "./site-intel.js";
 import "../popup.js";
