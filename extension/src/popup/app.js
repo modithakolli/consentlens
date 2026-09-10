@@ -1,17 +1,9 @@
-// Popup entry point. Feature modules progressively replace the legacy renderer below.
-// Keeping the legacy import here preserves the shipped UI while extraction happens in small, testable steps.
-import "./state.js";
-import "./dom.js";
-import "./api.js";
-import "./risk.js";
-import "./oauth.js";
-import "./graph.js";
-import "./timeline.js";
-import "./receipts.js";
-import "./fingerprinting.js";
-import "./dsar.js";
-import "./policy.js";
-import "./evidence.js";
-import "./risk-breakdown.js";
-import "./site-intel.js";
-import "../popup.js";
+import { el, paragraphs, reveal } from "./dom.js";
+import { activeTab, scan, freshReport, getReceipts, getTimeline, getMemory, analyzePolicy } from "./api.js";
+import { renderOAuth } from "./oauth.js"; import { renderGraph } from "./graph.js"; import { renderTimeline } from "./timeline.js"; import { renderReceipts } from "./receipts.js"; import { renderFingerprinting } from "./fingerprinting.js"; import { renderDsar, copyDsar } from "./dsar.js"; import { renderPolicyIntelligence } from "./policy.js"; import { renderEvidenceQA } from "./evidence.js"; import { renderRiskBreakdown } from "./risk-breakdown.js"; import { renderPrivacyLabel, renderSiteIntelligence } from "./site-intel.js"; import { confidenceSummary, friendlyCategory, resolvePartyIntel, renderOverview } from "./overview.js";
+let report = null; let analysis = null; let domainIntel = [];
+const party = (item) => resolvePartyIntel(item, domainIntel);
+const show = () => { if (!report) return; renderOverview(report, analysis, (action) => reveal(action.includes("policy") ? "policySection" : "dataRightsSection")); renderOAuth(report.content?.oauth); renderGraph(report, party); renderPrivacyLabel(report, analysis, { confidenceSummary }); renderSiteIntelligence(report, { resolvePartyIntel: party, friendlyCategory }); renderRiskBreakdown(report, analysis); renderFingerprinting(report); renderDsar(report, analysis); renderEvidenceQA(report, analysis, el("evidenceQuestion")?.value); renderPolicyIntelligence(analysis, { report, confidenceSummary }); };
+async function refresh() { const tab = await activeTab(); if (!tab?.id) return; const button = el("refresh"); button.disabled = true; try { await scan(tab.id); report = await freshReport(tab.id, report?.updatedAt || 0); analysis = null; domainIntel = []; if (!report) return paragraphs("plainEnglish", ["Unable to read this tab yet."]); show(); const [receipts, timeline] = await Promise.all([getReceipts(), getTimeline()]); renderReceipts(receipts.receipts); renderTimeline(timeline.timeline); } finally { button.disabled = false; } }
+async function runPolicy() { const tab = await activeTab(); if (!tab?.id || !report) return; reveal("policySection"); const response = await analyzePolicy(tab.id, "IN"); if (response?.ok) { analysis = response.analysis; domainIntel = analysis.domainIntel || []; } else { analysis = { source: "local", notice: "Backend unavailable; showing a local summary.", policy: { risk: report.risk, privacyLabel: { grade: "Pending", collects: report.plainEnglish?.dataCollected || [], shares: report.plainEnglish?.sharedWith || [], retention: "Not stated", rights: [] }, riskPoints: [], summary: [] } }; } show(); }
+el("refresh").onclick = () => refresh().catch((error) => paragraphs("plainEnglish", [error.message])); el("openSettings").onclick = () => chrome.runtime.openOptionsPage(); el("copyDsar").onclick = copyDsar; el("analyzePolicy").onclick = runPolicy; el("analyzeNutrition").onclick = runPolicy; el("viewDetails").onclick = () => reveal("privacyLabelSection"); el("whyRisk").onclick = () => reveal("policySection"); el("whatCanIDo").onclick = () => reveal("dataRightsSection"); el("askEvidence").onclick = () => renderEvidenceQA(report, analysis, el("evidenceQuestion").value); el("evidenceQuestion").oninput = () => renderEvidenceQA(report, analysis); refresh().catch((error) => paragraphs("plainEnglish", [error.message]));
