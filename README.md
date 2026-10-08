@@ -1,5 +1,7 @@
 # ConsentLens
 
+[![Extension fixture tests](https://github.com/modithakolli/consentlens/actions/workflows/extension-tests.yml/badge.svg)](https://github.com/modithakolli/consentlens/actions/workflows/extension-tests.yml)
+
 > A local-first browser trust layer that explains consent choices, trackers, account permissions, and privacy policies before people decide what to share.
 
 ConsentLens helps people understand what a website is doing with their data, what changed, and what action they can take. It scans locally in the browser first, labels uncertainty clearly, and only uses a backend for deeper analysis or explicitly enabled aggregate observations.
@@ -26,6 +28,20 @@ flowchart LR
 ```
 
 The extension does not treat an observed network request as proof that personal data was transferred. An unknown domain appears as **Unclassified third party**, not as safe or unsafe by default.
+
+## Extension internals
+
+```mermaid
+flowchart TB
+    Page[Web page] -->|DOM signals| CS[Content script<br/>consent, OAuth, policy, fingerprinting]
+    CS -->|scan result| SW[Service worker]
+    SW -->|active tab scan| CS
+    SW -->|local records and settings| LS[(chrome.storage.local)]
+    SW -->|popup data| PU[Popup]
+    PU -->|user-requested analysis| API[Optional Node.js backend]
+    API -->|analysis and source-backed profiles| PU
+    SW -->|explicit opt-in aggregate observations| RQ[Reviewer queue]
+```
 
 ## Current MVP
 
@@ -79,6 +95,23 @@ node extension/test/cmp-flow-fixtures.mjs
 node extension/test/storage-schema.mjs
 node extension/test/popup-risk.mjs
 ```
+
+## Built with
+
+- Chrome Extension Manifest V3, JavaScript, and `chrome.storage.local` for local-first scans and records.
+- A Node.js HTTP backend for optional policy analysis, profiles, claims, and reviewer workflows.
+- Node.js `.mjs` fixture and schema checks for the extension; the backend also has a Node.js test suite.
+
+## Design decisions
+
+- **Local first:** page scanning and history stay in the browser by default; the backend is optional and deeper analysis is user initiated.
+- **Observe, do not infer transfer:** `webRequest` reveals request destinations, not request bodies or proof that personal data was sent.
+- **Keep uncertainty visible:** unknown providers are labeled “Unclassified third party” until there is enough evidence to classify them.
+- **Review before publishing:** aggregate observations enter a reviewer queue; public intelligence requires sources and a human decision.
+
+## Validation status
+
+The repository contains four extension fixture checks and a separate backend test suite. The current local tracker-observation archive records 28 distinct third-party hosts and 203 host requests. This is an observation count, not a count of unique tested sites, and it does not establish false-positive or false-negative rates. The live-site ledger is not yet populated with outcomes. See the [validation ledger](./docs/validation-ledger.md) for the sites and fields to record.
 
 ## Privacy model and permissions
 
