@@ -1,121 +1,121 @@
 # ConsentLens
 
-ConsentLens is a hybrid browser-extension product for digital consent decisions.
+> A local-first browser trust layer that explains consent choices, trackers, account permissions, and privacy policies before people decide what to share.
 
-It explains what people are agreeing to across cookie banners, trackers, OAuth permissions, privacy policies, and legal rights before they click accept or continue.
+ConsentLens helps people understand what a website is doing with their data, what changed, and what action they can take. It scans locally in the browser first, labels uncertainty clearly, and only uses a backend for deeper analysis or explicitly enabled aggregate observations.
 
-## Product Shape
+## What it is for
 
-```text
-extension/
-  Chrome/Edge Manifest V3 extension
-  Live request monitoring
-  Cookie consent and OAuth interception
-  Popup risk report and consent receipts
+- **People** who want a plain-English explanation before accepting cookies, connecting an account, or continuing on a site.
+- **Privacy, product, and security teams** who need to test real consent journeys and document evidence.
+- **Researchers and reviewers** who want source-backed public profiles instead of unreviewed crowd data.
 
-backend/
-  Local/product API for deeper intelligence
-  Policy fetching and clause extraction
-  Domain to company intelligence
-  Legal rights summaries
+## How it works
+
+```mermaid
+flowchart LR
+    U[Person browsing] --> E[ConsentLens extension]
+    E --> L[Local scan and local history]
+    L --> P[Popup: explanation, risk, controls]
+    E -->|User requests deeper analysis| B[Local or hosted backend]
+    B --> I[Source-backed intelligence]
+    E -->|Explicit opt-in only| Q[Aggregate observation queue]
+    Q --> R[Reviewer evidence check]
+    R -->|Approved with sources| I
+    I --> P
 ```
 
-## Run The Extension
+The extension does not treat an observed network request as proof that personal data was transferred. An unknown domain appears as **Unclassified third party**, not as safe or unsafe by default.
 
-1. Open Chrome or Edge.
-2. Go to `chrome://extensions`.
-3. Enable Developer mode.
-4. Click Load unpacked.
-5. Select the `extension` folder, not the repo root.
+## Current MVP
 
-If you point Chrome at the repo root, it will say the manifest is missing because the manifest lives at `extension/manifest.json`.
+| Area | What is available now | Evidence / boundary |
+| --- | --- | --- |
+| Understand | Tracker mapping, policy links, plain-English summary, fingerprinting hints | Network and visible-page signals; results show uncertainty |
+| Consent | Warning before positive consent actions, including preference panels | CMP fixtures cover OneTrust, Didomi, Sourcepoint, and dialogs |
+| Account access | OAuth scope detection and Low/Medium/High/Critical heatmap | Scope meaning is explained in the popup |
+| Control | Consent receipts, data-rights request draft, local timeline | Stored locally by default |
+| Trust | Public profiles, evidence URLs, confidence, review dates, domain claims | Public facts require source-backed review |
+| Intelligence governance | Opt-in aggregate observations enter a reviewer queue | Observations never publish automatically |
 
-## Run The Backend
+## Run locally
+
+### 1. Load the extension
+
+1. Open Chrome or Edge and visit `chrome://extensions`.
+2. Turn on **Developer mode**.
+3. Click **Load unpacked**.
+4. Select [`extension`](./extension), not the repository root.
+5. Open a normal website and click the ConsentLens toolbar icon.
+
+Reload the extension after pulling changes or editing files.
+
+### 2. Start the optional backend
+
+The extension works locally without the backend. Start it for policy analysis, public profiles, claims, and reviewer workflows.
 
 ```powershell
 cd backend
-node server.js
+npm test
+npm start
 ```
 
-The backend runs at:
+The local API listens on `http://localhost:8787`.
 
-```text
-http://localhost:8787
-```
+Useful local pages:
 
-## Version Status
+- `http://localhost:8787/profiles` for public source-backed profiles
+- `http://localhost:8787/review` for the private reviewer console
 
-### Version 1
+Set `REVIEWER_TOKEN` before using reviewer routes. Never expose that token in a public deployment.
 
-- Tracker detection
-- Risk scoring
-- Plain-English explanation
-- Browser badge
+### 3. Run extension checks
 
-### Version 2
-
-- Cookie consent interception
-- OAuth warning overlay
-- OAuth scope risk and mismatch detection
-- Consent receipt history
-- Dark-pattern checks
-
-### Version 3
-
-- Backend policy analysis
-- Policy signal extraction
-- Privacy nutrition label
-- Consent change monitoring
-- Company reputation and headquarters context
-- Data-flow visualization
-- DSAR draft generation
-- Privacy risk timeline
-- Fingerprinting heuristics
-- Evidence-grounded Q&A
-- Legal-rights awareness
-- Domain to company intelligence
-- Extension-to-backend analysis flow
-- Tracker graph with site, tracker, and company layers
-- Extension settings for backend URL and region
-- VS Code workspace support for the extension
-
-## Product Privacy Principle
-
-The extension performs live browsing analysis locally. Backend calls are used for deeper analysis only when the user asks, such as clicking Analyze in Policy Intelligence.
-
-The extension can be pointed at a production backend from the `Settings` page in the popup without changing code.
-
-## Share It With Other People
-
-For other people to use this as a real product, the backend needs to be hosted somewhere public and the extension needs to be packaged for distribution.
-
-1. Host the backend at a stable HTTPS URL.
-2. Set `ALLOWED_ORIGINS` on the backend to your extension origin and production app origin.
-3. Point the extension settings page at the hosted API URL.
-4. Package the extension with:
+From the repository root:
 
 ```powershell
-.\scripts\package-extension.ps1
+node extension/test/scan-fixtures.mjs
+node extension/test/cmp-flow-fixtures.mjs
+node extension/test/storage-schema.mjs
+node extension/test/popup-risk.mjs
 ```
 
-That creates a zip you can upload to the Chrome Web Store or hand to a tester. The extension itself can still be installed unpacked from the `extension` folder during development.
+## Privacy model and permissions
 
-## Security And Privacy Posture
+- Scans, consent receipts, timeline entries, and settings live in `chrome.storage.local` by default.
+- Backend policy analysis happens only when the user requests it in the popup.
+- Aggregate tracker observations require an explicit option. They exclude visited-page URLs and user identity.
+- `activeTab` and `scripting` scan the active page; `storage` saves local records; `webRequest` observes request destinations; broad host access currently enables full-site scanning.
+- ConsentLens never modifies traffic, blocks content, reads request bodies, or claims legal compliance.
 
-- Keep live request inspection and cookie/OAuth interception in the extension.
-- Call the backend only when the user asks for deeper policy or domain intelligence.
-- Do not store full browsing history in the backend.
-- Store consent receipts locally by default.
-- Treat legal-rights text as awareness guidance, not legal advice or compliance verdicts.
+Read the complete [privacy and permissions note](./docs/extension-privacy-and-permissions.md), [intelligence governance](./docs/intelligence-governance.md), and [UX principles](./docs/ux-principles.md).
 
-## Extension permissions
+## Validation before external use
 
-- `activeTab` and `scripting` let ConsentLens scan the tab the person explicitly refreshes.
-- `storage` keeps local receipts, history, and settings on the device.
-- `tabs` associates a report with the active tab.
-- `webRequest` observes network destinations needed for the tracker report.
-- Broad host access currently supports live scanning. It is a deliberate audit item before distribution; future versions should prefer optional host access where Chrome permits it.
+ConsentLens is an MVP. Test the exact browser and site journey before relying on a result. The project keeps a [50–100 site validation ledger](./docs/validation-ledger.md) for recording false positives, false negatives, and evidence.
 
-ConsentLens does not use `webRequest` to modify traffic, block content, or inspect request bodies. Moving the scanner to user-initiated optional host access is the next permission-minimization milestone; it requires replacing automatic scans with an explicit per-site scan action.
+Important limitations:
 
-The extension page CSP permits scripts only from the packaged extension. See `docs/ux-principles.md` for the interaction and evidence rules.
+- Consent managers change their markup frequently.
+- Policy parsing provides guidance, not legal advice.
+- The service database is growing and does not yet cover every company or domain.
+- A “ConsentLens Verified” label must not exist until independent assessment, expiry, re-check, and revocation rules operate in production.
+
+## Project structure
+
+```text
+extension/       Manifest V3 extension and local scanner
+extension/src/popup/
+                 Popup orchestrator and feature renderers
+backend/         Local HTTP API, policy analysis, claims, reviewer routes
+shared/intel/    Versioned service, retention, AI-training, and sharing facts
+docs/            Governance, privacy, UX, presentation, and validation notes
+```
+
+## Contributing
+
+Open an issue or pull request with a reproducible site, browser version, expected outcome, actual outcome, and evidence. Do not add an intelligence fact from a browsing observation alone: include a public evidence URL, effective date, confidence, applicability, and review date.
+
+## License
+
+No open-source license has been granted yet. Do not reuse or redistribute this repository outside the project without permission from its owner.
